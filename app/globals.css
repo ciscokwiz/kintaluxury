@@ -1,0 +1,63 @@
+:root {
+  --wall: #dfdfdc;
+  --wall-hole-dark: rgba(0, 0, 0, 0.06);
+  --wall-hole-light: rgba(255, 255, 255, 0.55);
+  --navy: #2f3656;
+  --navy-strip: #3b4668;
+  --muted: #6e6f7e;
+  --veil: rgba(226, 226, 222, 0.62);
+  --peg-pitch: 66px;
+  --peg-r: 4.5px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* pegboard: a centred 66 px grid of 9 px debossed holes.
+   Each hole = a light disc offset 1 px down-right under a dark disc, so the
+   upper-left inner edge reads darker and the lower-right lighter. */
+body {
+  background-color: var(--wall);
+  background-image:
+    radial-gradient(circle at center, var(--wall-hole-dark) 0 var(--peg-r), transparent calc(var(--peg-r) + 0.6px)),
+    radial-gradient(circle at center, var(--wall-hole-light) 0 var(--peg-r), transparent calc(var(--peg-r) + 0.6px));
+  background-size: var(--peg-pitch) var(--peg-pitch);
+  background-position:
+    calc(50% - 0.5px) calc(50% - 0.5px),
+    calc(50% + 0.5px) calc(50% + 0.5px);
+  color: var(--navy);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+main {
+  position: fixed;
+  inset: 0;
+}
+
+a {
+  color: inherit;
+}
+
+/* focus rings are for keyboard users only (data-input is set by RackScene) */
+html:not([data-input="keyboard"]) :focus-visible {
+  outline: none !important;
+}
+
+::selection {
+  background: var(--navy);
+  color: var(--wall);
+}
