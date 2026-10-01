@@ -4,6 +4,7 @@ import Marquee from "@/components/Marquee";
 import ProductView from "@/components/ProductView";
 import SeeAvailability from "@/components/SeeAvailability";
 import RackScene from "@/components/three/RackScene";
+import TunePanel from "@/components/TunePanel";
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
       <SeeAvailability home />
       <Marquee />
       <ProductView />
+      <TunePanel />
     </main>
   );
 }

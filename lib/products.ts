@@ -60,6 +60,9 @@ function mulberry32(seed: number) {
 
 const rand = mulberry32(20240611);
 
+/** "/" for the Next app; "" (relative) for the standalone test build */
+const ASSET_BASE = process.env.NEXT_PUBLIC_ASSET_BASE ?? "/";
+
 export const PRODUCTS: Product[] = RAW.map((p, index) => {
   const id = String(index + 1).padStart(2, "0");
   const open = MOTION.openRestIndices.includes(index);
@@ -72,9 +75,9 @@ export const PRODUCTS: Product[] = RAW.map((p, index) => {
     index,
     name: p.name,
     kind: p.kind,
-    front: `/garments/${id}-front.webp`,
+    front: `${ASSET_BASE}garments/${id}-front.webp`,
     // every garment has a plain back; #01 carries the "Liberty or Death" back print
-    back: `/garments/${id}-back.webp`,
+    back: `${ASSET_BASE}garments/${id}-back.webp`,
     aspect: 1000 / 1200,
     restYaw: yawDeg * DEG_TO_RAD,
     restRoll: rollDeg * DEG_TO_RAD,

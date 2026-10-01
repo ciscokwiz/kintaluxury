@@ -4,6 +4,7 @@ import * as THREE from "three";
 import type { Ref } from "react";
 import type { RackMetrics } from "./useRackLayout";
 import { createHangerGeometry, createHookGeometries } from "./Hanger";
+import { injectFabric, type FabricUniforms } from "./fabric";
 
 export interface GarmentGeometries {
   front: THREE.BufferGeometry;
@@ -13,9 +14,12 @@ export interface GarmentGeometries {
   stem: THREE.BufferGeometry;
 }
 
-/** Curved panel: PlaneGeometry(w, h, 32, 1) with z = zOffset − k·x². */
+/**
+ * Curved panel with z = zOffset − k·x². The brief's 32 × 1 grid can only
+ * bend sideways; the cloth shader needs rows too, hence 32 × 40.
+ */
 function drapePanel(m: RackMetrics, zOffset: number, flipU: boolean) {
-  const g = new THREE.PlaneGeometry(m.garmentW, m.garmentH, 32, 1);
+  const g = new THREE.PlaneGeometry(m.garmentW, m.garmentH, 32, 40);
   g.translate(0, m.garmentCy, 0);
   const pos = g.attributes.position as THREE.BufferAttribute;
   const uv = g.attributes.uv as THREE.BufferAttribute;
@@ -49,8 +53,9 @@ export function disposeGarmentGeometries(g: GarmentGeometries) {
  * Fabric: textured, double sided. The face you see "inside" the garment
  * (back of the front panel, front of the back panel) is darkened to 70 %.
  * Alpha is cut on the texture alpha only, so `opacity` can fade the panel.
+ * The vertex shader adds the cloth micro-motion driven by `cloth`.
  */
-export function createFabricMaterial(map: THREE.Texture, panel: "front" | "back", fade: boolean) {
+export function createFabricMaterial(map: THREE.Texture, panel: "front" | "back", fade: boolean, cloth: FabricUniforms) {
   const mat = new THREE.MeshStandardMaterial({
     map,
     roughness: 0.9,
@@ -61,6 +66,7 @@ export function createFabricMaterial(map: THREE.Texture, panel: "front" | "back"
   });
   const inner = panel === "front" ? "!gl_FrontFacing" : "gl_FrontFacing";
   mat.onBeforeCompile = (shader) => {
+    injectFabric(shader, cloth);
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <map_fragment>",
       `#include <map_fragment>

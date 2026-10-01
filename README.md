@@ -32,6 +32,26 @@ scripts/        make_garments.py + the source photos
 public/garments NN-front.webp / NN-back.webp
 ```
 
+## Cloth micro-motion
+
+The garment panels bend in the vertex shader (`components/three/fabric.ts`), so the fabric answers
+the pointer: a soft dent and ripple where you touch it, cloth pulled along as you move, the garment
+leaning away from your hand, gentle breathing while hovered, a twist travelling down it as it
+swivels, the hem trailing when it slides along the rail, and a faint rustle in neighbours as the
+pointer passes. Nothing moves at rest, and `prefers-reduced-motion` turns it off.
+
+All amplitudes live in `FABRIC_DEFAULTS` (`lib/motion.ts`). Add `?tune` to the URL for a live
+panel with sliders; **Copy settings** gives you the JSON to paste back into `FABRIC_DEFAULTS`.
+
+## Standalone test page
+
+```bash
+npm run build:artifact   # → artifact/dist/index.html + garments/
+```
+
+Bundles the same React app with esbuild into one page (tuning panel on), for publishing as a
+claude.ai Artifact or opening from any static host.
+
 ## Garment mockups
 
 `scripts/make_garments.py` cuts the prints out of the brand photos in `scripts/photos/`
@@ -65,4 +85,5 @@ same path (1000 × 1200, shoulders at the top, ~40 px headroom).
 - With a 4.65 vw rest pitch the row can't also leave only 4.8 vw of empty rail at each end (the
   brief asks for both); the pitch wins, so on desktop the row sits mid-rail and the end-bunching
   logic only engages when a parted row reaches a bracket.
+- **Garment panels are 32 × 40** segments (brief: 32 × 1) so the cloth shader can bend them vertically.
 - **SEE AVAILABILITY / CONTACT** link to the Instagram profile (orders by DM). No prices are shown.

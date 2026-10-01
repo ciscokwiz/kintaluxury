@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import { PRODUCTS, COUNT } from "@/lib/products";
-import { MOTION } from "@/lib/motion";
+import { MOTION, FABRIC, DEG_TO_RAD } from "@/lib/motion";
 import { sim, useStore } from "@/lib/store";
 import { CAM_Z, FOV, layoutRack, useRackMetrics, type RackMetrics } from "./useRackLayout";
 import { Rail } from "./Rail";
@@ -13,6 +13,15 @@ import { Garment, createFabricMaterial, createGarmentGeometries, disposeGarmentG
 import { createChromeMaterial, createWoodMaterial } from "./Hanger";
 import { StudioLights } from "./StudioLights";
 import { springStep, damp, facingOf, renderYaw } from "./physics";
+import {
+  createFabricState,
+  createFabricUniforms,
+  fabricGlobals,
+  pointerOnGarment,
+  setFabricFrame,
+  stepFabric,
+  syncFabricGlobals,
+} from "./fabric";
 import styles from "./RackScene.module.css";
 
 export const TEXTURE_URLS = PRODUCTS.flatMap((p) => [p.front, p.back ?? p.front]);
@@ -67,15 +76,19 @@ function Rack() {
   useEffect(() => () => disposeGarmentGeometries(geo), [geo]);
 
   const shared = useMemo(() => ({ chrome: createChromeMaterial(), wood: createWoodMaterial() }), []);
+  // cloth: one uniform set per garment (front + back panel share it) and its eased state
+  const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
+  const clothState = useMemo(() => PRODUCTS.map(() => createFabricState()), []);
+  useEffect(() => cloth.forEach((u) => setFabricFrame(u, m)), [cloth, m]);
   const mats = useMemo(
     () =>
       PRODUCTS.map((_, i) => ({
-        front: createFabricMaterial(textures[i * 2], "front", false),
-        back: createFabricMaterial(textures[i * 2 + 1], "back", false),
+        front: createFabricMaterial(textures[i * 2], "front", false, cloth[i]),
+        back: createFabricMaterial(textures[i * 2 + 1], "back", false, cloth[i]),
         wood: shared.wood,
         chrome: shared.chrome,
       })),
-    [textures, shared],
+    [textures, shared, cloth],
   );
 
   const roots = useRef<(THREE.Group | null)[]>([]);
@@ -85,6 +98,7 @@ function Rack() {
   const facing = useRef<number[]>(new Array(COUNT).fill(0));
   const label = useRef({ x: 0, y: 0, shown: false });
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const local = useMemo(() => new THREE.Vector2(), []);
   const el = gl.domElement;
 
   // first paint: everything at rest
@@ -240,7 +254,13 @@ function Rack() {
     for (let i = 0; i < COUNT; i++) {
       const g = sim.garments[i];
       const rest = PRODUCTS[i].restYaw;
-      const target = i === front ? 0 : rest;
+      // the hovered garment leans away from the hand pressing it (micro-motion)
+      const cs = clothState[i];
+      const lean =
+        i === hovered && !reduced && FABRIC.enabled
+          ? Math.max(-1, Math.min(1, cs.cursor.x / (m.garmentW * 0.45))) * FABRIC.leanDeg * DEG_TO_RAD * cs.press
+          : 0;
+      const target = i === front ? lean : rest;
       if (reduced) {
         const step = (rest / (MOTION.reducedSwivelMs / 1000)) * dt;
         g.yaw += Math.max(-step, Math.min(step, target - g.yaw));
@@ -291,6 +311,34 @@ function Rack() {
       yawG.position.y = m.hoverLift * f;
     }
     if (railRef.current) railRef.current.position.x = sim.scroll;
+
+    // cloth: press / drag under the pointer, breathing on hover, rustle for neighbours
+    syncFabricGlobals(reduced);
+    fabricGlobals.uTime.value += dt;
+    const mouse = sim.pointer.type === "mouse" && sim.pointer.overCanvas && !sim.dragging && st.mode === "rack";
+    const pwx = (sim.pointer.x / m.widthPx - 0.5) * m.worldW - sim.scroll;
+    const pwy = (0.5 - sim.pointer.y / m.heightPx) * 10;
+    const inBand = pwy < m.railY + m.hookTop && pwy > m.railY + Math.min(...m.hemY);
+    for (let i = 0; i < COUNT; i++) {
+      const g = sim.garments[i];
+      const yawG = yaws.current[i];
+      let press = 0;
+      let cursor: THREE.Vector2 | null = null;
+      if (i === hovered && mouse && yawG && roots.current[i]) {
+        roots.current[i]!.updateMatrixWorld(true);
+        if (pointerOnGarment(camera, sim.pointer.x, sim.pointer.y, m.widthPx, m.heightPx, yawG, m, local)) {
+          press = 1;
+          cursor = local;
+        }
+      }
+      let hover = i === hovered ? 1 : 0;
+      if (i !== hovered && mouse && inBand) {
+        const d = (pwx - g.x) / (m.pitch * 1.3);
+        hover = FABRIC.rustle * Math.exp(-d * d);
+      }
+      const active = stepFabric(clothState[i], cloth[i], { press, cursor, hover, yawVelocity: g.vyaw, slideVelocity: g.vx }, dt, m.garmentW);
+      if (active) moving = true;
+    }
 
     // hover label follows the hem of the hovered garment
     const lab = sim.labelEl;

@@ -58,3 +58,35 @@ export const MOTION = {
 } as const;
 
 export const DEG_TO_RAD = DEG;
+
+/**
+ * Cloth micro-motion (components/three/fabric.ts). Amplitudes are fractions
+ * of the garment's width. Mutable so the tuning panel can change them live.
+ */
+export const FABRIC_DEFAULTS = {
+  enabled: true,
+  /** depth of the dent under the pointer */
+  press: 0.04,
+  /** height of the ring spreading from the pointer */
+  ripple: 0.004,
+  /** size of the pressed area */
+  radius: 0.16,
+  /** billowing while hovered */
+  breathe: 0.014,
+  /** twist travelling down the garment while it swivels */
+  wave: 0.05,
+  /** hem trailing the hanger as it slides */
+  sway: 0.045,
+  /** cloth pulled along by a moving pointer */
+  drag: 0.018,
+  /** hovered garment leans toward the pointer (deg of yaw at the edge) */
+  leanDeg: 7,
+  /** how much neighbours rustle as the pointer passes (0–1) */
+  rustle: 0.35,
+  /** how fast the pressed spot follows the pointer */
+  cursorLambda: 9,
+};
+
+export type FabricConfig = typeof FABRIC_DEFAULTS;
+
+export const FABRIC: FabricConfig = { ...FABRIC_DEFAULTS };
