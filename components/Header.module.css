@@ -1,0 +1,111 @@
+.header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 0;
+  z-index: 10;
+}
+
+.nav {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.nav:hover {
+  opacity: 0.55;
+}
+
+.nav:focus-visible {
+  outline: 1px solid var(--navy);
+  outline-offset: 3px;
+}
+
+.left {
+  position: absolute;
+  left: 2.1vw;
+  top: 5vh;
+}
+
+.right {
+  position: absolute;
+  right: 2.1vw;
+  top: 5vh;
+}
+
+.logo {
+  position: absolute;
+  left: 50%;
+  top: 2.5vh;
+  transform: translateX(-50%);
+  display: block;
+  width: 88px;
+  height: 52px;
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.wordmark {
+  display: block;
+  width: 88px;
+  height: auto;
+}
+
+/* line 2, offset ~35 % of the word width to the right */
+.co {
+  position: absolute;
+  left: 31px;
+  top: 27px;
+  font-family: var(--font-script), cursive;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.about {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  width: min(300px, 80vw);
+  padding: 14px 16px;
+  border: 1px solid rgba(47, 54, 86, 0.25);
+  border-radius: 10px;
+  background: rgba(233, 233, 230, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--navy);
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.about[data-open] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.about p {
+  margin: 0 0 6px;
+}
+
+.about p:last-child {
+  margin: 0;
+}
+
+.about a {
+  color: inherit;
+}
