@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import { MOTION } from "@/lib/motion";
-import { PRODUCTS, HEM_FRAC } from "@/lib/products";
+import { PRODUCTS, TEE_HEM_FRAC } from "@/lib/products";
 
 /* ------------------------------------------------------------------------
  * Viewport → world mapping.
@@ -16,7 +16,18 @@ export const FOV = 24;
 export const CAM_Z = WORLD_H / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
 
 /** texture layout (px in the 1000 × 1200 garment textures) */
-export const TEX = { w: 1000, h: 1200, hangerTop: 62, hangerTipX: 285, hangerTipTop: 148, hangerThick: 24 };
+export const TEX = { w: 1000, h: 1200, hangerTop: 62, hangerThick: 24 };
+
+/**
+ * Hanger outline per garment kind, in texture px: half-width and how far the
+ * tips drop below the centre. Fitted so the bar stays inside the shoulders of
+ * the photographed garments (a hoodie's shoulders sit much lower than a tee's).
+ */
+export const HANGER_PROFILE = {
+  tee: { tipX: 285, drop: 95, power: 1.5 },
+  hoodie: { tipX: 250, drop: 170, power: 1.3 },
+} as const;
+export type HangerKind = keyof typeof HANGER_PROFILE;
 
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 
@@ -120,8 +131,8 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const centre = (railLeft + railRight) / 2;
   const restX = PRODUCTS.map((_, i) => centre - rowSpan / 2 + i * pitch);
 
-  const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - HEM_FRAC[p.kind] * garmentH);
-  const teeHem = garmentCy + garmentH / 2 - HEM_FRAC.tee * garmentH;
+  const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - p.hemFrac * garmentH);
+  const teeHem = garmentCy + garmentH / 2 - TEE_HEM_FRAC * garmentH;
   const detailScale = lh(71 - 16) / (hookTop - teeHem);
   const detailPivotY = y(16) - hookTop * detailScale;
 

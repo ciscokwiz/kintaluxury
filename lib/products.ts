@@ -1,4 +1,5 @@
 import { MOTION, DEG_TO_RAD } from "./motion";
+import manifest from "./garmentManifest.json";
 
 export type GarmentKind = "tee" | "longsleeve" | "crewneck" | "hoodie";
 
@@ -9,6 +10,10 @@ export interface Product {
   kind: GarmentKind;
   front: string;
   back?: string;
+  /** body-volume map (0 at the silhouette, 1 inside) that gives the panels depth */
+  vol: string;
+  /** hem position as a fraction of the texture height (from the texture build) */
+  hemFrac: number;
   /** texture width / height */
   aspect: number;
   /** resting yaw (rad), deterministic jitter baked in */
@@ -25,24 +30,22 @@ export const BRAND = {
   handle: "@kinta.and.co",
 } as const;
 
-/** Where the hem sits inside each 1000×1200 texture (fraction of height). */
-export const HEM_FRAC: Record<GarmentKind, number> = {
-  tee: 1080 / 1200,
-  longsleeve: 1112 / 1200,
-  crewneck: 1166 / 1200,
-  hoodie: 1166 / 1200,
-};
+/** Texture height in px (scripts/make_photoreal.py writes 1000 × 1200). */
+const TEX_H = 1200;
+
+/** Hem of a tee, used to size the product view (fraction of the texture height). */
+export const TEE_HEM_FRAC = manifest["01"].hem / TEX_H;
 
 const RAW: { name: string; kind: GarmentKind }[] = [
   { name: "The Liberty Tee — Bone", kind: "tee" },
   { name: "The New African Icon Tee — Black", kind: "tee" },
   { name: "Restricted Eagle Tee — Azure", kind: "tee" },
-  { name: "Kinta. Track Hoodie — Sky", kind: "hoodie" },
-  { name: "KINTA™ Logo Crewneck — Forest", kind: "crewneck" },
-  { name: "New African Icon Long Sleeve — Black", kind: "longsleeve" },
-  { name: "KINTA™ Logo Tee — Sand", kind: "tee" },
+  { name: "Kinta. Hoodie — Sky", kind: "hoodie" },
+  { name: "KINTA™ Logo Tee — Forest", kind: "tee" },
   { name: "Restricted Eagle Tee — Onyx", kind: "tee" },
-  { name: "Kinta. Track Hoodie — Navy", kind: "hoodie" },
+  { name: "KINTA™ Logo Tee — Sand", kind: "tee" },
+  { name: "Kinta. Hoodie — Peach", kind: "hoodie" },
+  { name: "Kinta. Hoodie — Navy", kind: "hoodie" },
   { name: "KINTA™ Logo Tee — Slate", kind: "tee" },
 ];
 
@@ -76,8 +79,10 @@ export const PRODUCTS: Product[] = RAW.map((p, index) => {
     name: p.name,
     kind: p.kind,
     front: `${ASSET_BASE}garments/${id}-front.webp`,
-    // every garment has a plain back; #01 carries the "Liberty or Death" back print
+    // every garment has a back; #01 carries the "Liberty or Death" print
     back: `${ASSET_BASE}garments/${id}-back.webp`,
+    vol: `${ASSET_BASE}garments/${id}-vol.png`,
+    hemFrac: manifest[id as keyof typeof manifest].hem / TEX_H,
     aspect: 1000 / 1200,
     restYaw: yawDeg * DEG_TO_RAD,
     restRoll: rollDeg * DEG_TO_RAD,

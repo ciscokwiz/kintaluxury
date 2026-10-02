@@ -24,14 +24,22 @@ import {
 } from "./fabric";
 import styles from "./RackScene.module.css";
 
-export const TEXTURE_URLS = PRODUCTS.flatMap((p) => [p.front, p.back ?? p.front]);
+/** front, back, volume — three per product */
+export const TEXTURE_URLS = PRODUCTS.flatMap((p) => [p.front, p.back ?? p.front, p.vol]);
 
 export function configureTextures(textures: THREE.Texture[], anisotropy: number) {
-  for (const t of textures) {
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = anisotropy;
+  textures.forEach((t, i) => {
+    if (i % 3 === 2) {
+      // volume map: data, sampled in the vertex shader
+      t.colorSpace = THREE.NoColorSpace;
+      t.generateMipmaps = false;
+      t.minFilter = THREE.LinearFilter;
+    } else {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = anisotropy;
+    }
     t.needsUpdate = true;
-  }
+  });
 }
 
 /* ---------------------------------------------------------------------- */
@@ -83,8 +91,8 @@ function Rack() {
   const mats = useMemo(
     () =>
       PRODUCTS.map((_, i) => ({
-        front: createFabricMaterial(textures[i * 2], "front", false, cloth[i]),
-        back: createFabricMaterial(textures[i * 2 + 1], "back", false, cloth[i]),
+        front: createFabricMaterial(textures[i * 3], "front", false, cloth[i], textures[i * 3 + 2]),
+        back: createFabricMaterial(textures[i * 3 + 1], "back", false, cloth[i], textures[i * 3 + 2]),
         wood: shared.wood,
         chrome: shared.chrome,
       })),
@@ -382,6 +390,7 @@ function Rack() {
         <Garment
           key={p.id}
           geo={geo}
+          kind={p.kind === "hoodie" ? "hoodie" : "tee"}
           mats={mats[i]}
           rootRef={(g) => {
             roots.current[i] = g;

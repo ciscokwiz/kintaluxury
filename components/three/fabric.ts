@@ -32,6 +32,7 @@ export const fabricGlobals = {
   uAmpSway: { value: FABRIC.sway },
   uAmpDrag: { value: FABRIC.drag },
   uRadius: { value: FABRIC.radius },
+  uDepth: { value: FABRIC.depth },
 };
 
 /** Copy FABRIC (after the tuning panel changed it) into the shader uniforms. */
@@ -44,6 +45,23 @@ export function syncFabricGlobals(reduced: boolean) {
   fabricGlobals.uAmpSway.value = FABRIC.sway;
   fabricGlobals.uAmpDrag.value = FABRIC.drag;
   fabricGlobals.uRadius.value = FABRIC.radius;
+  fabricGlobals.uDepth.value = FABRIC.depth;
+}
+
+/** Per panel: which side it bulges to and the garment's volume map. */
+export interface PanelUniforms {
+  uVolume: { value: THREE.Texture };
+  uSide: { value: number };
+  uFlipU: { value: number };
+}
+
+export function createPanelUniforms(volume: THREE.Texture, panel: "front" | "back"): PanelUniforms {
+  return {
+    uVolume: { value: volume },
+    uSide: { value: panel === "front" ? 1 : -1 },
+    // the back panel's U is mirrored; the volume map is indexed by the front's U
+    uFlipU: { value: panel === "front" ? 0 : 1 },
+  };
 }
 
 export interface FabricUniforms {
@@ -57,6 +75,7 @@ export interface FabricUniforms {
   uTop: { value: number };
   uH: { value: number };
   uW: { value: number };
+  uLayer: { value: number };
 }
 
 /** One per garment, shared by its front and back panel so they move as one. */
@@ -72,6 +91,7 @@ export function createFabricUniforms(seed: number): FabricUniforms {
     uTop: { value: 0 },
     uH: { value: 1 },
     uW: { value: 1 },
+    uLayer: { value: 0 },
   };
 }
 
@@ -79,13 +99,22 @@ export function setFabricFrame(u: FabricUniforms, m: RackMetrics) {
   u.uTop.value = m.hangerTop;
   u.uH.value = m.garmentH;
   u.uW.value = m.garmentW;
+  u.uLayer.value = m.layer;
 }
 
 const VERTEX_HEAD = /* glsl */ `
 uniform float uTime, uEnabled;
-uniform float uAmpPress, uAmpRipple, uAmpBreathe, uAmpWave, uAmpSway, uAmpDrag, uRadius;
+uniform float uAmpPress, uAmpRipple, uAmpBreathe, uAmpWave, uAmpSway, uAmpDrag, uRadius, uDepth;
 uniform vec2 uCursor, uDrag;
-uniform float uPress, uHover, uWave, uSway, uSeed, uTop, uH, uW;
+uniform float uPress, uHover, uWave, uSway, uSeed, uTop, uH, uW, uLayer;
+uniform sampler2D uVolume;
+uniform float uSide, uFlipU;
+
+// body: front and back panels bulge apart over the garment's volume map and meet at its outline
+float kintaBody(vec2 g) {
+  float h = texture2D(uVolume, g).r;
+  return uSide * (uLayer * (0.12 + 0.88 * smoothstep(0.0, 0.3, h)) + uDepth * uW * h);
+}
 
 vec3 kintaFabric(vec2 p) {
   float down = clamp((uTop - p.y) / uH, 0.0, 1.0);   // 0 at the shoulders, 1 at the hem
@@ -123,17 +152,20 @@ vec3 kintaFabric(vec2 p) {
 `;
 
 /** Patch a MeshStandardMaterial so its panel moves like cloth. */
-export function injectFabric(shader: THREE.WebGLProgramParametersWithUniforms, u: FabricUniforms) {
-  Object.assign(shader.uniforms, fabricGlobals, u);
+export function injectFabric(shader: THREE.WebGLProgramParametersWithUniforms, u: FabricUniforms, panel: PanelUniforms) {
+  Object.assign(shader.uniforms, fabricGlobals, u, panel);
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${VERTEX_HEAD}`)
     .replace(
       "#include <beginnormal_vertex>",
       /* glsl */ `
       vec3 kf = kintaFabric(position.xy);
-      float ke = 0.004 * uH;
-      float kdx = (kintaFabric(position.xy + vec2(ke, 0.0)).z - kf.z) / ke;
-      float kdy = (kintaFabric(position.xy + vec2(0.0, ke)).z - kf.z) / ke;
+      vec2 kg = vec2(mix(uv.x, 1.0 - uv.x, uFlipU), uv.y);
+      kf.z += kintaBody(kg);
+      float ke = 0.006 * uH;
+      vec2 kduv = vec2(ke / uW, ke / uH);
+      float kdx = (kintaFabric(position.xy + vec2(ke, 0.0)).z + kintaBody(kg + vec2(kduv.x, 0.0)) - kf.z) / ke;
+      float kdy = (kintaFabric(position.xy + vec2(0.0, ke)).z + kintaBody(kg + vec2(0.0, kduv.y)) - kf.z) / ke;
       vec3 objectNormal = normalize(normal + vec3(-kdx, -kdy, 0.0));
       #ifdef USE_TANGENT
         vec3 objectTangent = vec3( tangent.xyz );
@@ -255,7 +287,8 @@ export function pointerOnGarment(
   raycaster.setFromCamera(ndc, camera);
   inv.copy(yawGroup.matrixWorld).invert();
   ray.copy(raycaster.ray).applyMatrix4(inv);
-  plane.constant = -m.layer;
+  // roughly where the bulged front panel sits
+  plane.constant = -(m.layer + FABRIC.depth * m.garmentW * 0.8);
   if (!ray.intersectPlane(plane, hit)) return false;
   out.set(hit.x, hit.y);
   const bottom = m.garmentCy - m.garmentH / 2;

@@ -1,28 +1,38 @@
 "use client";
 
 import * as THREE from "three";
-import type { RackMetrics } from "./useRackLayout";
-import { TEX } from "./useRackLayout";
+import type { HangerKind, RackMetrics } from "./useRackLayout";
+import { HANGER_PROFILE, TEX } from "./useRackLayout";
 
 const WOOD_DARK = new THREE.Color("#5A2620");
 const WOOD_LIGHT = new THREE.Color("#7A3A2C");
 
-/** Wooden shoulder bar: a flattened arch, extruded, bevelled and bent to the drape. */
-export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
+/** Wooden shoulder bar: an arch fitted to the garment's shoulders, extruded, bevelled, bent to the drape. */
+export function createHangerGeometry(m: RackMetrics, kind: HangerKind): THREE.BufferGeometry {
   const t = m.texel;
   const top = m.hangerTop;
-  const tipX = TEX.hangerTipX * t;
-  const drop = (TEX.hangerTipTop - TEX.hangerTop) * t;
+  const prof = HANGER_PROFILE[kind];
+  const tipX = prof.tipX * t;
+  const drop = prof.drop * t;
   const th = TEX.hangerThick * t;
+  const edge = (x: number) => top - drop * Math.pow(Math.min(1, Math.abs(x) / tipX), prof.power);
+  const N = 24;
 
   const s = new THREE.Shape();
-  s.moveTo(-tipX, top - drop);
-  s.bezierCurveTo(-tipX * 0.62, top - drop * 0.42, -tipX * 0.28, top, 0, top);
-  s.bezierCurveTo(tipX * 0.28, top, tipX * 0.62, top - drop * 0.42, tipX, top - drop);
-  s.quadraticCurveTo(tipX + th * 0.55, top - drop - th * 0.5, tipX - th * 0.15, top - drop - th);
-  s.bezierCurveTo(tipX * 0.6, top - drop * 0.5 - th, tipX * 0.28, top - th * 0.95, 0, top - th * 0.95);
-  s.bezierCurveTo(-tipX * 0.28, top - th * 0.95, -tipX * 0.6, top - drop * 0.5 - th, -tipX + th * 0.15, top - drop - th);
-  s.quadraticCurveTo(-tipX - th * 0.55, top - drop - th * 0.5, -tipX, top - drop);
+  // top edge, left tip → right tip
+  for (let i = 0; i <= N; i++) {
+    const x = -tipX + (2 * tipX * i) / N;
+    if (i === 0) s.moveTo(x, edge(x));
+    else s.lineTo(x, edge(x));
+  }
+  // rounded right tip, bottom edge back, rounded left tip
+  s.quadraticCurveTo(tipX + th * 0.55, edge(tipX) - th * 0.5, tipX - th * 0.15, edge(tipX) - th);
+  for (let i = N - 1; i >= 1; i--) {
+    const x = -tipX + (2 * tipX * i) / N;
+    s.lineTo(x * 0.98, edge(x) - th * (0.95 + 0.05 * Math.abs(x / tipX)));
+  }
+  s.lineTo(-tipX + th * 0.15, edge(tipX) - th);
+  s.quadraticCurveTo(-tipX - th * 0.55, edge(tipX) - th * 0.5, -tipX, edge(-tipX));
 
   const depth = m.layer * 1.1;
   const bevel = 1.4 * t;
@@ -67,8 +77,49 @@ export function createHookGeometries(m: RackMetrics) {
   return { ring, stem };
 }
 
+/** Procedural wood grain (greyscale; the vertex colours carry the hue). Runs along the bar. */
+function woodGrain(): THREE.Texture {
+  const w = 512;
+  const h = 256;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const g = c.getContext("2d")!;
+  const img = g.createImageData(w, h);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const waves = Array.from({ length: 5 }, () => ({ f: 1 + rnd() * 3, p: rnd() * 6.28, a: 2 + rnd() * 6 }));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let yy = y;
+      for (const wv of waves) yy += Math.sin((x / w) * 6.283 * wv.f + wv.p) * wv.a;
+      const ring = 0.5 + 0.5 * Math.sin(yy * 0.55 + Math.sin(yy * 0.07) * 3);
+      const fine = 0.5 + 0.5 * Math.sin(yy * 2.7 + x * 0.01);
+      const v = 0.78 + 0.16 * ring * ring + 0.05 * fine + (rnd() - 0.5) * 0.03;
+      const i = (y * w + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.max(0, Math.min(255, v * 255));
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(0.9, 2.4);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** Lacquered wood: grain × the hanger's dark-to-light gradient, with a thin clear coat. */
 export function createWoodMaterial() {
-  return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, envMapIntensity: 0.6 });
+  return new THREE.MeshPhysicalMaterial({
+    vertexColors: true,
+    map: woodGrain(),
+    roughness: 0.48,
+    metalness: 0,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.32,
+    envMapIntensity: 0.7,
+  });
 }
 
 export function createChromeMaterial() {

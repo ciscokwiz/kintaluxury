@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "garments": "python3 scripts/make_garments.py scripts/photos",
+    "garments": "python3 scripts/make_photoreal.py",
     "build:artifact": "node scripts/build-artifact.mjs"
   },
   "dependencies": {

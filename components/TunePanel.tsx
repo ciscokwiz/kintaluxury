@@ -8,6 +8,7 @@ import styles from "./TunePanel.module.css";
 type NumKey = { [K in keyof FabricConfig]: FabricConfig[K] extends number ? K : never }[keyof FabricConfig];
 
 const SLIDERS: { key: NumKey; label: string; min: number; max: number; step: number }[] = [
+  { key: "depth", label: "Body thickness", min: 0, max: 0.12, step: 0.002 },
   { key: "press", label: "Pointer dent", min: 0, max: 0.08, step: 0.001 },
   { key: "radius", label: "Dent size", min: 0.06, max: 0.35, step: 0.005 },
   { key: "ripple", label: "Ripple", min: 0, max: 0.015, step: 0.0005 },

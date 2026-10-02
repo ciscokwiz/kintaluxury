@@ -52,11 +52,10 @@ npm run build:artifact   # → artifact/dist/index.html + garments/
 Bundles the same React app with esbuild into one page (tuning panel on), for publishing as a
 claude.ai Artifact or opening from any static host.
 
-## Garment mockups
+## Garments
 
-`scripts/make_garments.py` cuts the prints out of the brand photos in `scripts/photos/`
-(KINTA™ puff wordmark, "Liberty or Death" back print, "The New African Icon" print, the
-"Restricted" diamond eagle) and composites them onto shaded ghost-mannequin silhouettes:
+The rack garments are the brand's photoreal ghost-mannequin mockups (`scripts/photos/ref-*.webp`),
+cut out, cleaned up and recoloured by `scripts/make_photoreal.py`:
 
 ```bash
 pip install pillow numpy
@@ -65,22 +64,28 @@ npm run garments
 
 | # | Product | Source |
 |---|---|---|
-| 01 | The Liberty Tee — Bone (KINTA™ front, Liberty back print) | photos 1 + 2 |
-| 02 | The New African Icon Tee — Black | photo 3 |
-| 03 | Restricted Eagle Tee — Azure | photo 4 |
-| 04 | Kinta. Track Hoodie — Sky | photo 5 |
-| 05–10 | Logo Crewneck Forest, NAI Long Sleeve, Logo Tee Sand, Eagle Tee Onyx, Track Hoodie Navy, Logo Tee Slate | concept colourways of the same prints |
+| 01 | The Liberty Tee — Bone | ref-14 front; back = ref-14 back with the real print from photo 2 |
+| 02 | The New African Icon Tee — Black | ref-11 |
+| 03, 06 | Restricted Eagle Tee — Azure / Onyx | ref-14 tee recoloured + the eagle from photo 4 |
+| 05, 07, 10 | KINTA™ Logo Tee — Forest / Sand / Slate | ref-14 tee recoloured, logo re-inked |
+| 04, 08, 09 | Kinta. Hoodie — Sky / Peach / Navy | ref-12 (joggers cut off), recoloured |
 
-Edit names in `lib/products.ts`. Replace a mockup by dropping a real transparent cut-out at the
-same path (1000 × 1200, shoulders at the top, ~40 px headroom).
+Two mockup defects are corrected rather than copied: the hoodie chest read **"KIATA."** (replaced
+with the KINTA wordmark), and the Liberty quote was garbled AI text (replaced with the print from
+the real photo). Each garment also gets a body-volume map (`NN-vol.png`) that the vertex shader uses
+to give the front and back panels depth, so a garment seen side-on reads as cloth with thickness.
+Hangers are fitted per garment kind (`HANGER_PROFILE`) so they stay inside the shoulders.
+
+Replace a mockup by dropping a new render in `scripts/photos/` and re-running the script.
 
 ## Where this differs from the brief
 
-- **Textures are WebP** (with alpha), not PNG: 550 KB for all twenty instead of 27 MB.
+- **Textures are WebP** (with alpha), not PNG: about 2 MB for all thirty (front, back, volume).
 - **w_front** grows with the garment (≥ 1.12 × its front width). These garments are wider than the
   reference's, and at 15 vw the neighbours covered the hovered piece.
 - **Rest yaw is perspective-corrected** so garments left and right of centre show the same sliver.
-- **Hoodie** is an extra garment kind (spec lists tee / long sleeve / crewneck).
+- **Hoodie** is an extra garment kind (spec lists tee / long sleeve / crewneck); the line-up is tees and hoodies because those are the pieces with reference renders.
+- **Fabric is MeshPhysicalMaterial with sheen** over the photographed albedo, and each garment has body volume.
 - **Drag-to-turn in the product view** reveals the back panel (the Liberty print lives on the back of #01).
 - With a 4.65 vw rest pitch the row can't also leave only 4.8 vw of empty rail at each end (the
   brief asks for both); the pitch wins, so on desktop the row sits mid-rail and the end-bunching

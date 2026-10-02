@@ -65,6 +65,8 @@ export const DEG_TO_RAD = DEG;
  */
 export const FABRIC_DEFAULTS = {
   enabled: true,
+  /** body thickness of each panel (front bulges forward, back backward) */
+  depth: 0.05,
   /** depth of the dent under the pointer */
   press: 0.04,
   /** height of the ring spreading from the pointer */

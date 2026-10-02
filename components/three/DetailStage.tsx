@@ -52,8 +52,8 @@ function DetailGarment() {
     const chrome = createChromeMaterial();
     wood.transparent = chrome.transparent = true;
     return PRODUCTS.map((_, i) => ({
-      front: createFabricMaterial(textures[i * 2], "front", true, cloth[i]),
-      back: createFabricMaterial(textures[i * 2 + 1], "back", true, cloth[i]),
+      front: createFabricMaterial(textures[i * 3], "front", true, cloth[i], textures[i * 3 + 2]),
+      back: createFabricMaterial(textures[i * 3 + 1], "back", true, cloth[i], textures[i * 3 + 2]),
       wood,
       chrome,
     }));
@@ -178,7 +178,7 @@ function DetailGarment() {
   });
 
   if (active === null) return null;
-  return <Garment geo={geo} mats={mats[active]} rootRef={root} yawRef={yaw} />;
+  return <Garment geo={geo} kind={PRODUCTS[active].kind === "hoodie" ? "hoodie" : "tee"} mats={mats[active]} rootRef={root} yawRef={yaw} />;
 }
 
 export default function DetailStage({ interactive }: { interactive: boolean }) {
