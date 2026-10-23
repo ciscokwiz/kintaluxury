@@ -3,8 +3,7 @@
 import { useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import { MOTION } from "@/lib/motion";
-import { PRODUCTS, HEM_FRAC, RACK_PRODUCTS, RACK_INDICES, rackIndexOf } from "@/lib/products";
-import { GARMENT_FITS } from "@/lib/garment-fit";
+import { PRODUCTS, HEM_FRAC } from "@/lib/products";
 
 /* ------------------------------------------------------------------------
  * Viewport → world mapping.
@@ -74,8 +73,6 @@ export interface RackMetrics {
   detailScale: number;
   /** hem y (relative to the pivot, unscaled) for each product */
   hemY: number[];
-  /** Actual dimensions for each design, shared by rack, detail and hit-testing. */
-  shapes: { garmentW: number; garmentH: number; garmentCy: number; texel: number; layer: number; drapeK: number }[];
 }
 
 export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
@@ -88,24 +85,18 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const lh = (vh: number) => (vh / 100) * WORLD_H;
 
   const railY = y(26.8);
-  const railRadius = lh(0.17);
-  const hookTube = lh(0.065);
-  const hookR = lh(0.64);
+  const railRadius = lh(0.45);
+  const hookTube = railRadius * 0.32;
+  const hookR = railRadius * 1.9;
   const hookCy = hookR - railRadius - hookTube;
   const hookTop = hookCy + hookR + hookTube;
-  const hangerTop = -lh(2.9);
+  const hangerTop = -lh(4.8);
 
   // A wider, shorter silhouette gives the mockups a natural boxy fit.
   const garmentH = lh(bp === "mobile" ? 32 : 34);
   const texel = garmentH / TEX.h;
   const garmentW = TEX.w * texel * 1.26;
-  const garmentCy = hangerTop - lh(1.5) + TEX.hangerTop * texel - garmentH / 2;
-  const shapes = PRODUCTS.map((product) => {
-    const fit = GARMENT_FITS[product.kind];
-    const h = garmentH * fit.length;
-    const w = garmentW * fit.width;
-    return { garmentW: w, garmentH: h, garmentCy: hangerTop - lh(1.5) + TEX.hangerTop * h / TEX.h - h / 2, texel: h / TEX.h, layer: w * fit.thickness, drapeK: 0.14 / w };
-  });
+  const garmentCy = hangerTop + TEX.hangerTop * texel - garmentH / 2;
   const frontWidth = garmentW * 0.88;
 
   const pitch = Math.max(lw(MOTION.restPitchVw), frontWidth * 0.272);
@@ -116,14 +107,8 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
 
   let railLeft = bp === "desktop" ? x(12.3) : x(6);
   let railRight = bp === "desktop" ? x(86.5) : x(94);
-  const n = RACK_PRODUCTS.length;
-  const slotOffsets = [0];
-  for (let i = 1; i < n; i++) {
-    const a = GARMENT_FITS[RACK_PRODUCTS[i - 1].kind].width;
-    const b = GARMENT_FITS[RACK_PRODUCTS[i].kind].width;
-    slotOffsets.push(slotOffsets[i - 1] + pitch * (0.72 + 0.14 * (a + b)));
-  }
-  const rowSpan = slotOffsets[n - 1];
+  const n = PRODUCTS.length;
+  const rowSpan = (n - 1) * pitch;
   const endRoom = lw(4.8);
   const scrollable = bp === "mobile" || rowSpan + 2 * endRoom > railRight - railLeft;
   let scrollMax = 0;
@@ -134,9 +119,9 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     scrollMax = Math.max(0, half - worldW / 2 + lw(4));
   }
   const centre = (railLeft + railRight) / 2;
-  const restX = PRODUCTS.map((product) => centre - rowSpan / 2 + slotOffsets[RACK_INDICES.indexOf(rackIndexOf(product.index))]);
+  const restX = PRODUCTS.map((_, i) => centre - rowSpan / 2 + i * pitch);
 
-  const hemY = PRODUCTS.map((p, i) => shapes[i].garmentCy + shapes[i].garmentH / 2 - HEM_FRAC[p.kind] * shapes[i].garmentH);
+  const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - HEM_FRAC[p.kind] * garmentH);
   const teeHem = garmentCy + garmentH / 2 - HEM_FRAC.tee * garmentH;
   const detailScale = Math.min(
     lh(71 - 16) / (hookTop - teeHem),
@@ -181,7 +166,6 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     detailPivotY,
     detailScale,
     hemY,
-    shapes,
   };
 }
 
@@ -192,17 +176,6 @@ export function useRackMetrics(): RackMetrics {
   return useMemo(() => computeMetrics(width, height), [width, height]);
 }
 
-export function garmentMetrics(m: RackMetrics, index: number): RackMetrics {
-  return { ...m, ...m.shapes[index] };
-}
-
-export function detailMetrics(m: RackMetrics, index: number) {
-  const shape = m.shapes[index];
-  const hem = m.hemY[index];
-  const scale = Math.min(m.lh(55) / (m.hookTop - hem), m.worldW * (m.bp === "mobile" ? 0.80 : 0.54) / shape.garmentW);
-  return { scale, y: m.y(43.5) - (m.hookTop + hem) * scale / 2 };
-}
-
 /* ------------------------------------------------------------------------
  * Rack layout: target hook-x for every garment from the CURRENT facing of
  * every garment. Neighbours pack outward from the anchor; near the rail
@@ -211,51 +184,75 @@ export function detailMetrics(m: RackMetrics, index: number) {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-function layoutSlots(m: RackMetrics, facing: number[], anchor: number | null, out: number[]): number[] {
+export function layoutRack(m: RackMetrics, facing: number[], anchor: number | null, out: number[]): number[] {
   const n = facing.length;
   if (anchor === null) {
     for (let i = 0; i < n; i++) out[i] = m.restX[i];
     return out;
   }
-  const widths = facing.map((f, i) => lerp(m.pitch * GARMENT_FITS[RACK_PRODUCTS[i].kind].width, Math.max(m.wFront, m.shapes[RACK_INDICES[i]].garmentW * 0.96), f));
-  const spacing = new Array<number>(n).fill(0);
-  const capacity = new Array<number>(n).fill(0);
+  const w = facing.map((f) => lerp(m.pitch, m.wFront, f));
+  // spacing[i] = distance between garment i−1 and i
+  const s = new Array<number>(n).fill(0);
   for (let i = 1; i < n; i++) {
-    spacing[i] = (widths[i - 1] + widths[i]) / 2 + m.gap * Math.max(facing[i - 1], facing[i]);
-    // Keep room immediately around a front-facing garment; bunch the outer hangers.
-    capacity[i] = Math.max(0, spacing[i] - m.bunch) * (1 - Math.max(facing[i - 1], facing[i]));
+    s[i] = (w[i - 1] + w[i]) / 2 + m.gap * Math.max(facing[i - 1], facing[i]);
   }
   const margin = m.railRadius * 2 + m.lw(0.6);
-  const lo = m.railLeft + margin, hi = m.railRight - margin;
-  const span = spacing.reduce((sum, gap) => sum + gap, 0);
-  const excess = Math.max(0, span - (hi - lo));
-  const available = capacity.reduce((sum, amount) => sum + amount, 0);
-  if (excess > 0 && available > 0) {
-    const compression = Math.min(1, excess / available);
-    for (let i = 1; i < n; i++) spacing[i] -= capacity[i] * compression;
-  }
-  const remainingSpan = spacing.reduce((sum, gap) => sum + gap, 0);
-  if (remainingSpan > hi - lo) {
-    // Extremely narrow hosts still preserve hanger order rather than clamping
-    // multiple items onto the same bracket.
-    const fit = (hi - lo) / remainingSpan;
-    for (let i = 1; i < n; i++) spacing[i] *= fit;
-  }
-  const leftSpan = spacing.slice(1, anchor + 1).reduce((sum, gap) => sum + gap, 0);
-  const rightSpan = spacing.slice(anchor + 1).reduce((sum, gap) => sum + gap, 0);
-  out[anchor] = Math.max(lo + leftSpan, Math.min(hi - rightSpan, m.restX[anchor]));
-  for (let i = anchor + 1; i < n; i++) out[i] = out[i - 1] + spacing[i];
-  for (let i = anchor - 1; i >= 0; i--) out[i] = out[i + 1] - spacing[i + 1];
-  return out;
-}
+  const lo = m.railLeft + margin;
+  const hi = m.railRight - margin;
 
-export function layoutRack(m: RackMetrics, facing: number[], anchor: number | null, out: number[]): number[] {
-  const local = layoutSlots(
-    { ...m, restX: RACK_INDICES.map((index) => m.restX[index]) },
-    RACK_INDICES.map((index) => facing[index]),
-    anchor === null ? null : RACK_INDICES.indexOf(rackIndexOf(anchor)),
-    new Array(RACK_INDICES.length).fill(0),
-  );
-  PRODUCTS.forEach((product) => { out[product.index] = local[RACK_INDICES.indexOf(rackIndexOf(product.index))]; });
+  // how much each spacing may shrink when the row hits a rail end:
+  // spacings next to a turned garment are rigid, outer ones bunch first
+  const capacity = (i: number) => Math.max(0, s[i] - m.bunch) * (1 - Math.max(facing[i - 1], facing[i]));
+
+  const compress = (from: number, to: number, step: 1 | -1, over: number) => {
+    if (over <= 0) return 0;
+    let total = 0;
+    const weights: number[] = [];
+    for (let i = from, d = 1; step > 0 ? i <= to : i >= to; i += step, d++) {
+      const k = step > 0 ? i : i + 1;
+      const wgt = capacity(k) * d;
+      weights.push(wgt);
+      total += wgt;
+    }
+    if (total <= 0) return over;
+    let remaining = over;
+    let j = 0;
+    for (let i = from; step > 0 ? i <= to : i >= to; i += step, j++) {
+      const k = step > 0 ? i : i + 1;
+      const take = Math.min(capacity(k), (over * weights[j]) / total);
+      s[k] -= take;
+      remaining -= take;
+    }
+    return Math.max(0, remaining);
+  };
+
+  let ax = m.restX[anchor];
+  const place = () => {
+    out[anchor] = ax;
+    for (let i = anchor + 1; i < n; i++) out[i] = out[i - 1] + s[i];
+    for (let i = anchor - 1; i >= 0; i--) out[i] = out[i + 1] - s[i + 1];
+  };
+  place();
+  // right end
+  let over = out[n - 1] - hi;
+  if (over > 0 && anchor < n - 1) {
+    const left = compress(anchor + 1, n - 1, 1, over);
+    ax -= left;
+    place();
+  } else if (over > 0) {
+    ax -= over;
+    place();
+  }
+  // left end
+  over = lo - out[0];
+  if (over > 0 && anchor > 0) {
+    const left = compress(anchor - 1, 0, -1, over);
+    ax += left;
+    place();
+  } else if (over > 0) {
+    ax += over;
+    place();
+  }
+  for (let i = 0; i < n; i++) out[i] = Math.min(hi, Math.max(lo, out[i]));
   return out;
 }

@@ -12,7 +12,6 @@ npm ci
 npm run dev
 npm run lint
 npm run typecheck
-npm run test:rack
 npm run build
 npm start
 ```
@@ -24,26 +23,20 @@ are required for the current enquiry workflow.
 ## Showroom
 
 The plain studio wall, chrome rail, wooden hangers, lime announcement strip,
-and black typography frame seven hanging designs, with ten selectable colorways.
+and black typography frame ten garment colorways across seven designs.
 Hover a garment to swivel it forward and move its neighbors apart. Click to
 open the product view; on touch, tap once to turn and again to open.
 Narrow screens support dragging the rack horizontally.
 
 The product view has Front/Back buttons, drag-to-turn, hanging color tags,
 previous/next design navigation, and a link to the selected product and color.
-Changing color updates that design's garment on the rack and is remembered
-when the product view closes or you navigate between designs.
 The ticker stays visible. Keyboard users can Tab through the garments, press
 Enter to open, use arrow keys to navigate, and Escape to close. Reduced-motion
 preferences are respected.
 
-The garments preserve the original Kinta front/back artwork on shaped surfaces,
-with closed sleeve/hem edges, raised collar seams, subtle woven shading, and
-different cuts and thickness for tees, long sleeves, crewnecks, and hoodies.
-Visible wooden shoulders support the necklines. Movement emphasizes damped
-turning and sliding; there is no hover enlargement, lift, ripple or idle billowing.
-The rail stays fixed while the hangers move. These are rendered mockups rather
-than clothing scans. Soft wall shadows add depth. Original
+The garments are transparent front/back WebP textures on curved, subdivided
+panels, with folds and pointer-driven cloth motion. They are mockups rather
+than full volumetric clothing scans. Soft wall shadows add depth. Original
 brand photos are available in the product gallery for the first four colorways.
 
 ## Products and bag
@@ -72,8 +65,6 @@ lib/products.ts              catalog, colors, grouped designs and pricing
 lib/cart.ts                  validated browser-local bag
 lib/store.ts                 showroom state and mutable animation state
 lib/motion.ts                timing, springs and fabric parameters
-lib/garment-fit.ts           garment cuts, fabric weight and edge thickness
-tests/rack.test.ts           layout, garment geometry, color state and motion checks
 public/garments/             transparent garment front/back mockups
 public/product-photos/       unchanged original brand photos
 ```

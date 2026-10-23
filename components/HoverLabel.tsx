@@ -10,7 +10,6 @@ import styles from "./HoverLabel.module.css";
 /** Tiny product name under the hovered garment's hem (positioned by the rack loop). */
 export default function HoverLabel() {
   const hovered = useStore((s) => s.hovered);
-  const variants = useStore((s) => s.rackVariants);
   const outer = useRef<HTMLDivElement>(null);
   const inner = useRef<HTMLSpanElement>(null);
   const prev = useRef<number | null>(null);
@@ -45,7 +44,7 @@ export default function HoverLabel() {
 
   return (
     <div ref={outer} className={styles.label} aria-hidden>
-      <span ref={inner}>{last !== null ? PRODUCTS[variants[last] ?? last].name : ""}</span>
+      <span ref={inner}>{last !== null ? PRODUCTS[last].name : ""}</span>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { COUNT, PRODUCTS, RACK_PRODUCTS, rackIndexOf } from "./products";
+import { COUNT, PRODUCTS } from "./products";
 
 export type ViewMode = "rack" | "opening" | "detail" | "closing";
 export type GarmentFace = "front" | "back";
@@ -15,7 +15,6 @@ interface UIState {
   /** bumps on every prev/next so the detail fade restarts even on wrap to the same index */
   navTick: number;
   face: GarmentFace;
-  rackVariants: Record<number, number>;
   setHovered: (i: number | null) => void;
   setReady: () => void;
   open: (i: number) => void;
@@ -33,15 +32,13 @@ export const useStore = create<UIState>((set, get) => ({
   ready: false,
   navTick: 0,
   face: "front",
-  rackVariants: {},
   setHovered: (i) => {
     if (get().hovered !== i) set({ hovered: i });
   },
   setReady: () => set({ ready: true }),
   open: (i) => {
-    if (get().mode !== "rack" || !PRODUCTS[i]) return;
-    const selected = get().rackVariants[rackIndexOf(i)] ?? i;
-    set({ active: selected, mode: "opening", hovered: null, face: "front" });
+    if (get().mode !== "rack") return;
+    set({ active: i, mode: "opening", hovered: null, face: "front" });
   },
   close: () => {
     const m = get().mode;
@@ -51,15 +48,15 @@ export const useStore = create<UIState>((set, get) => ({
     const { mode, active, navTick } = get();
     if (mode !== "detail") return;
     if (active === null) return;
-    const groups = RACK_PRODUCTS;
+    const groups = PRODUCTS.filter((product, index) => PRODUCTS.findIndex((other) => other.groupId === product.groupId) === index);
     const current = groups.findIndex((product) => product.groupId === PRODUCTS[active].groupId);
     const next = groups[(current + dir + groups.length) % groups.length];
-    set({ active: get().rackVariants[next.index] ?? next.index, navTick: navTick + 1, face: "front" });
+    set({ active: next.index, navTick: navTick + 1, face: "front" });
   },
   selectVariant: (index) => {
     const { mode, active, navTick } = get();
-    if (mode !== "detail" || index === active || !PRODUCTS[index] || active === null || PRODUCTS[index].groupId !== PRODUCTS[active].groupId) return;
-    set({ active: index, navTick: navTick + 1, face: "front", rackVariants: { ...get().rackVariants, [rackIndexOf(index)]: index } });
+    if (mode !== "detail" || index === active || index < 0 || index >= COUNT) return;
+    set({ active: index, navTick: navTick + 1, face: "front" });
   },
   setFace: (face) => {
     if (get().mode !== "detail") return;

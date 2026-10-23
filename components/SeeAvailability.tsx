@@ -15,8 +15,7 @@ interface Props {
 /** Continue from the rack to the selected design and color. */
 export default function SeeAvailability({ home, tabIndex, productIndex }: Props) {
   const hovered = useStore((state) => state.hovered);
-  const variants = useStore((state) => state.rackVariants);
-  const product = PRODUCTS[productIndex ?? variants[hovered ?? 0] ?? hovered ?? 0];
+  const product = PRODUCTS[productIndex ?? hovered ?? 0];
   const link = (
     <Link className={styles.pill} href={`/products/${product.slug}?color=${product.id}`} tabIndex={tabIndex}>
       See availability
