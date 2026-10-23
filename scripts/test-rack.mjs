@@ -1,0 +1,10 @@
+import { build } from "esbuild";
+import { mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
+const outfile = resolve("node_modules/.cache/kinta-tests/rack.test.mjs");
+mkdirSync(resolve("node_modules/.cache/kinta-tests"), { recursive: true });
+await build({ entryPoints: ["tests/rack.test.ts"], outfile, bundle: true, platform: "node", format: "esm", packages: "external", tsconfig: "tsconfig.json", logLevel: "warning" });
+const result = spawnSync(process.execPath, ["--test", outfile], { stdio: "inherit" });
+if (result.error) throw result.error;
+process.exit(result.status ?? 1);

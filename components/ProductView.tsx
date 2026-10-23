@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import { PRODUCTS, getProductVariants } from "@/lib/products";
+import { PRODUCTS, getProductVariants, rackIndexOf } from "@/lib/products";
 import { MOTION } from "@/lib/motion";
 import { detail, sim, useStore } from "@/lib/store";
 import { computeMetrics } from "./three/useRackLayout";
@@ -58,14 +58,15 @@ export default function ProductView() {
       tl.current?.kill();
       fade.current?.kill();
       const m = computeMetrics(window.innerWidth, window.innerHeight);
-      const g = sim.garments[i];
-      const f = facingOf(g.yaw, PRODUCTS[i].restYaw);
-      detail.from = { x: g.x + sim.scroll, y: m.railY + m.hoverLift * f, yaw: renderYaw(g.yaw, PRODUCTS[i].restYaw, g.x + sim.scroll), roll: g.roll, scale: 1 + (MOTION.hoverScale - 1) * f };
+      const slot = rackIndexOf(i);
+      const g = sim.garments[slot];
+      const f = facingOf(g.yaw, PRODUCTS[slot].restYaw);
+      detail.from = { x: g.x + sim.scroll, y: m.railY + m.hoverLift * f, yaw: renderYaw(g.yaw, PRODUCTS[slot].restYaw, g.x + sim.scroll), roll: g.roll, scale: 1 + (MOTION.hoverScale - 1) * f };
       detail.p = 0;
       detail.opacity = 1;
       detail.spin = detail.spinV = detail.spinTarget = 0;
       detail.settleStart = -1;
-      sim.hidden = i;
+      sim.hidden = slot;
       sim.tapHover = null;
       sim.focusHover = null;
       sim.wakeRack();
@@ -98,8 +99,8 @@ export default function ProductView() {
       // the garment is back in its own slot, front-facing, neighbours parted…
       detail.opacity = 0;
       sim.hidden = null;
-      sim.snapParted = i;
-      sim.forceFront = i;
+      sim.snapParted = rackIndexOf(i);
+      sim.forceFront = rackIndexOf(i);
       sim.wakeRack();
       sim.wakeDetail();
       const c = MOTION.close;
@@ -114,7 +115,7 @@ export default function ProductView() {
         }, [], duration(c.releaseMs))
         .call(() => {
           setMode("rack");
-          focusEl(sim.buttons[i]);
+          focusEl(sim.buttons[rackIndexOf(i)]);
           sim.wakeRack();
         }, [], duration(c.overlayMs))
         .set(veil, { visibility: "hidden" });
@@ -126,7 +127,7 @@ export default function ProductView() {
   useEffect(() => {
     if (navTick === 0 || useStore.getState().mode !== "detail") return;
     const i = useStore.getState().active;
-    sim.hidden = i;
+    sim.hidden = i === null ? null : rackIndexOf(i);
     sim.wakeRack();
     fade.current?.kill();
     detail.p = 1;

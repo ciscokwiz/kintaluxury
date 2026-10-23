@@ -4,16 +4,16 @@ import * as THREE from "three";
 import type { RackMetrics } from "./useRackLayout";
 import { TEX } from "./useRackLayout";
 
-const WOOD_DARK = new THREE.Color("#5A2620");
-const WOOD_LIGHT = new THREE.Color("#7A3A2C");
+const WOOD_DARK = new THREE.Color("#633b2c");
+const WOOD_LIGHT = new THREE.Color("#a5724f");
 
 /** Wooden shoulder bar: a flattened arch, extruded, bevelled and bent to the drape. */
 export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
   const t = m.texel;
   const top = m.hangerTop;
   const tipX = TEX.hangerTipX * (m.garmentW / TEX.w);
-  const drop = (TEX.hangerTipTop - TEX.hangerTop) * t;
-  const th = TEX.hangerThick * t;
+  const drop = (TEX.hangerTipTop - TEX.hangerTop) * t + m.lh(1.5);
+  const th = TEX.hangerThick * t * 1.25;
 
   const s = new THREE.Shape();
   s.moveTo(-tipX, top - drop);
@@ -43,8 +43,9 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     pos.setZ(i, pos.getZ(i) - m.drapeK * x * x);
+    const grain = 0.04 * Math.sin(x / t * 0.23 + pos.getY(i) / t * 0.8);
     const k = 1 - Math.min(1, Math.abs(x) / tipX);
-    c.copy(WOOD_DARK).lerp(WOOD_LIGHT, 0.25 + 0.75 * k);
+    c.copy(WOOD_DARK).lerp(WOOD_LIGHT, 0.2 + 0.65 * k + grain);
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
@@ -72,5 +73,5 @@ export function createWoodMaterial() {
 }
 
 export function createChromeMaterial() {
-  return new THREE.MeshStandardMaterial({ color: "#f2f2f2", metalness: 1, roughness: 0.12 });
+  return new THREE.MeshStandardMaterial({ color: "#c7c9c5", metalness: 1, roughness: 0.24 });
 }

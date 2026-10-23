@@ -4,12 +4,13 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { PRODUCTS, COUNT } from "@/lib/products";
+import { PRODUCTS, COUNT, RACK_INDICES, RACK_PRODUCTS } from "@/lib/products";
+import { GARMENT_FITS } from "@/lib/garment-fit";
 import { MOTION, FABRIC, DEG_TO_RAD } from "@/lib/motion";
 import { sim, useStore } from "@/lib/store";
-import { CAM_Z, FOV, layoutRack, useRackMetrics, type RackMetrics } from "./useRackLayout";
+import { CAM_Z, FOV, layoutRack, useRackMetrics, garmentMetrics, type RackMetrics } from "./useRackLayout";
 import { Rail } from "./Rail";
-import { Garment, createFabricMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
+import { Garment, createFabricMaterial, createEdgeMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
 import { createChromeMaterial, createWoodMaterial } from "./Hanger";
 import { StudioLights } from "./StudioLights";
 import { springStep, damp, facingOf, renderYaw } from "./physics";
@@ -44,13 +45,14 @@ function hitTest(m: RackMetrics, px: number, py: number, current: number | null)
   if (wy > top || wy < bottom) return null;
   const half = (i: number) => {
     const f = facingOf(sim.garments[i].yaw, PRODUCTS[i].restYaw);
-    return (m.pitch + (m.wFront - m.pitch) * f) / 2;
+    return (m.pitch + (Math.max(m.wFront, m.shapes[i].garmentW * 0.96) - m.pitch) * f) / 2;
   };
-  if (current !== null && current !== sim.hidden && Math.abs(wx - sim.garments[current].x) < half(current)) return current;
+  const overGarment = (i: number) => wy >= m.railY + m.hemY[i] - m.lh(0.8);
+  if (current !== null && current !== sim.hidden && overGarment(current) && Math.abs(wx - sim.garments[current].x) < half(current)) return current;
   let best: number | null = null;
   let bestD = Infinity;
-  for (let i = 0; i < COUNT; i++) {
-    if (i === sim.hidden) continue;
+  for (const i of RACK_INDICES) {
+    if (i === sim.hidden || !overGarment(i)) continue;
     const d = Math.abs(wx - sim.garments[i].x);
     if (d < half(i) && d < bestD) {
       best = i;
@@ -68,28 +70,34 @@ function Rack() {
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const setReady = useStore((s) => s.setReady);
+  const rackVariants = useStore((s) => s.rackVariants);
 
   const textures = useTexture(TEXTURE_URLS);
   useMemo(() => configureTextures(textures, Math.min(8, gl.capabilities.getMaxAnisotropy())), [textures, gl]);
 
-  const geo = useMemo(() => createGarmentGeometries(m), [m]);
-  useEffect(() => () => disposeGarmentGeometries(geo), [geo]);
+  const geo = useMemo(() => PRODUCTS.map((product) => createGarmentGeometries(m, product)), [m]);
+  useEffect(() => () => geo.forEach(disposeGarmentGeometries), [geo]);
 
   const shared = useMemo(() => ({ chrome: createChromeMaterial(), wood: createWoodMaterial() }), []);
   // cloth: one uniform set per garment (front + back panel share it) and its eased state
   const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
   const clothState = useMemo(() => PRODUCTS.map(() => createFabricState()), []);
-  useEffect(() => cloth.forEach((u) => setFabricFrame(u, m)), [cloth, m]);
+  useEffect(() => cloth.forEach((u, i) => setFabricFrame(u, garmentMetrics(m, i))), [cloth, m]);
   const mats = useMemo(
     () =>
       PRODUCTS.map((_, i) => ({
         front: createFabricMaterial(textures[i * 2], "front", false, cloth[i]),
         back: createFabricMaterial(textures[i * 2 + 1], "back", false, cloth[i]),
+        edge: createEdgeMaterial(PRODUCTS[i], cloth[i], false),
         wood: shared.wood,
         chrome: shared.chrome,
       })),
     [textures, shared, cloth],
   );
+  useEffect(() => () => {
+    mats.forEach((material) => { material.front.dispose(); material.back.dispose(); material.edge.dispose(); });
+  }, [mats]);
+  useEffect(() => () => { shared.wood.dispose(); shared.chrome.dispose(); }, [shared]);
 
   const roots = useRef<(THREE.Group | null)[]>([]);
   const yaws = useRef<(THREE.Group | null)[]>([]);
@@ -255,7 +263,7 @@ function Rack() {
       const g = sim.garments[i];
       const rest = PRODUCTS[i].restYaw;
       // the hovered garment leans away from the hand pressing it (micro-motion)
-      const cs = clothState[i];
+      const cs = clothState[st.rackVariants[i] ?? i];
       const lean =
         i === hovered && !reduced && FABRIC.enabled
           ? Math.max(-1, Math.min(1, cs.cursor.x / (m.garmentW * 0.45))) * FABRIC.leanDeg * DEG_TO_RAD * cs.press
@@ -294,7 +302,8 @@ function Rack() {
         g.vroll = 0;
       } else {
         springStep(g, "x", "vx", g.tx, MOTION.slide.stiffness, MOTION.slide.damping, dt);
-        const swing = Math.max(-MOTION.swayMax, Math.min(MOTION.swayMax, -g.vx * MOTION.swayGain));
+        const weight = GARMENT_FITS[PRODUCTS[i].kind].weight;
+        const swing = Math.max(-MOTION.swayMax, Math.min(MOTION.swayMax, -g.vx * MOTION.swayGain / weight));
         springStep(g, "roll", "vroll", PRODUCTS[i].restRoll + swing, MOTION.sway.stiffness, MOTION.sway.damping, dt);
       }
       if (Math.abs(g.tx - g.x) > 1e-4 || Math.abs(g.vx) > 1e-4 || Math.abs(g.vroll) > 1e-4) moving = true;
@@ -310,7 +319,7 @@ function Rack() {
       yawG.scale.setScalar(1 + (MOTION.hoverScale - 1) * f);
       yawG.position.y = m.hoverLift * f;
     }
-    if (railRef.current) railRef.current.position.x = sim.scroll;
+    // The rail is mounted to the wall; only the hangers move when browsing.
 
     // cloth: press / drag under the pointer, breathing on hover, rustle for neighbours
     syncFabricGlobals(reduced);
@@ -319,14 +328,16 @@ function Rack() {
     const pwx = (sim.pointer.x / m.widthPx - 0.5) * m.worldW - sim.scroll;
     const pwy = (0.5 - sim.pointer.y / m.heightPx) * 10;
     const inBand = pwy < m.railY + m.hookTop && pwy > m.railY + Math.min(...m.hemY);
-    for (let i = 0; i < COUNT; i++) {
+    for (const i of RACK_INDICES) {
       const g = sim.garments[i];
+      const selected = st.rackVariants[i] ?? i;
+      const shape = garmentMetrics(m, selected);
       const yawG = yaws.current[i];
       let press = 0;
       let cursor: THREE.Vector2 | null = null;
       if (i === hovered && mouse && yawG && roots.current[i]) {
         roots.current[i]!.updateMatrixWorld(true);
-        if (pointerOnGarment(camera, sim.pointer.x, sim.pointer.y, m.widthPx, m.heightPx, yawG, m, local)) {
+        if (pointerOnGarment(camera, sim.pointer.x, sim.pointer.y, m.widthPx, m.heightPx, yawG, shape, local)) {
           press = 1;
           cursor = local;
         }
@@ -336,7 +347,7 @@ function Rack() {
         const d = (pwx - g.x) / (m.pitch * 1.3);
         hover = FABRIC.rustle * Math.exp(-d * d);
       }
-      const active = stepFabric(clothState[i], cloth[i], { press, cursor, hover, yawVelocity: g.vyaw, slideVelocity: g.vx }, dt, m.garmentW);
+      const active = stepFabric(clothState[selected], cloth[selected], { press, cursor, hover, yawVelocity: g.vyaw, slideVelocity: g.vx }, dt, shape.garmentW);
       if (active) moving = true;
     }
 
@@ -371,23 +382,23 @@ function Rack() {
     camera.position.y = damp(camera.position.y, py, MOTION.parallax.lambda, dt);
     if (Math.abs(camera.position.x - px) > 1e-4 || Math.abs(camera.position.y - py) > 1e-4) moving = true;
 
-    // keep the loop alive only while something moves or the pointer is on the rack
-    if (moving || sim.pointer.overCanvas || sim.dragging) invalidate();
+    // Pointer events wake the scene; a stationary pointer doesn't animate it.
+    if (moving || sim.dragging) invalidate();
   });
 
   return (
     <>
       <Rail m={m} material={shared.chrome} groupRef={railRef} />
-      {PRODUCTS.map((p, i) => (
+      {RACK_PRODUCTS.map((p) => (
         <Garment
           key={p.id}
-          geo={geo}
-          mats={mats[i]}
+          geo={geo[rackVariants[p.index] ?? p.index]}
+          mats={mats[rackVariants[p.index] ?? p.index]}
           rootRef={(g) => {
-            roots.current[i] = g;
+            roots.current[p.index] = g;
           }}
           yawRef={(g) => {
-            yaws.current[i] = g;
+            yaws.current[p.index] = g;
           }}
         />
       ))}
@@ -399,27 +410,28 @@ function Rack() {
 
 function A11yButtons() {
   const open = useStore((s) => s.open);
+  const variants = useStore((s) => s.rackVariants);
   return (
     <div className={styles.srOnly}>
-      {PRODUCTS.map((p, i) => (
+      {RACK_PRODUCTS.map((p) => (
         <button
           key={p.id}
           type="button"
           ref={(b) => {
-            sim.buttons[i] = b;
+            sim.buttons[p.index] = b;
           }}
           onFocus={() => {
             if (!sim.keyboard) return;
-            sim.focusHover = i;
+            sim.focusHover = p.index;
             sim.wakeRack();
           }}
           onBlur={() => {
-            if (sim.focusHover === i) sim.focusHover = null;
+            if (sim.focusHover === p.index) sim.focusHover = null;
             sim.wakeRack();
           }}
-          onClick={() => open(i)}
+          onClick={() => open(p.index)}
         >
-          {p.name}
+          {PRODUCTS[variants[p.index] ?? p.index].name}
         </button>
       ))}
     </div>

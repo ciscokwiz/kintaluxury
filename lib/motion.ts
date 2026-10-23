@@ -10,9 +10,9 @@ export const MOTION = {
   subStep: 1 / 240,
 
   // 7.1 hover swivel
-  swivel: { stiffness: 140, damping: 20 },
-  hoverScale: 1.04,
-  hoverLiftVh: 0.6,
+  swivel: { stiffness: 180, damping: 27 },
+  hoverScale: 1,
+  hoverLiftVh: 0,
   restYawDeg: 74,
   restYawJitterDeg: 6,
   restRollJitterDeg: 1.5,
@@ -21,12 +21,12 @@ export const MOTION = {
   openRestIndices: [5, 8] as readonly number[], // #06, #09
 
   // 7.2 rail sliding + sway
-  slide: { stiffness: 170, damping: 18 },
-  sway: { stiffness: 60, damping: 6 },
+  slide: { stiffness: 150, damping: 25 },
+  sway: { stiffness: 72, damping: 15 },
   /** targetRoll = −velocityX(world units/s) · swayGain, clamped to ±swayMax */
-  swayGain: 0.035,
-  swayMax: 7 * DEG,
-  restPitchVw: 4.65,
+  swayGain: 0.012,
+  swayMax: 2.4 * DEG,
+  restPitchVw: 6.3,
   wFrontVw: { desktop: 15, tablet: 26, mobile: 15 },
   minGapVw: 0.4,
   /** tightest spacing garments bunch to near the rail ends */
@@ -36,19 +36,19 @@ export const MOTION = {
   label: { enterMs: 160, exitMs: 120, enterY: 4, glideLambda: 12 },
 
   // 7.5 open
-  open: { totalMs: 700, veilMs: 450, uiDelayMs: 350, uiMs: 350, uiStaggerMs: 40, uiY: 8, blurPx: 14 },
+  open: { totalMs: 560, veilMs: 340, uiDelayMs: 240, uiMs: 260, uiStaggerMs: 30, uiY: 6, blurPx: 14 },
   // 7.6 navigate
   navFadeMs: 300,
   // 7.8 close
   close: { overlayMs: 200, releaseMs: 120, totalMs: 650 },
   /** settle sway allowed as the tail of the open animation */
-  detailSettle: { amplitudeDeg: 0.8, hz: 1.1, decay: 4.5 },
+  detailSettle: { amplitudeDeg: 0.25, hz: 0.9, decay: 6 },
 
   // 7.9 marquee
   marqueePxPerSec: 38,
 
   // 6 micro-parallax
-  parallax: { x: 0.006, y: 0.004, lambda: 4 },
+  parallax: { x: 0, y: 0, lambda: 6 },
 
   // 10 reduced motion
   reducedSwivelMs: 120,
@@ -66,23 +66,23 @@ export const DEG_TO_RAD = DEG;
 export const FABRIC_DEFAULTS = {
   enabled: true,
   /** depth of the dent under the pointer */
-  press: 0.04,
+  press: 0.004,
   /** height of the ring spreading from the pointer */
-  ripple: 0.004,
+  ripple: 0,
   /** size of the pressed area */
   radius: 0.16,
   /** billowing while hovered */
-  breathe: 0.014,
+  breathe: 0,
   /** twist travelling down the garment while it swivels */
-  wave: 0.05,
+  wave: 0.009,
   /** hem trailing the hanger as it slides */
-  sway: 0.045,
+  sway: 0.012,
   /** cloth pulled along by a moving pointer */
-  drag: 0.018,
+  drag: 0.003,
   /** hovered garment leans toward the pointer (deg of yaw at the edge) */
-  leanDeg: 7,
+  leanDeg: 1.5,
   /** how much neighbours rustle as the pointer passes (0–1) */
-  rustle: 0.35,
+  rustle: 0,
   /** how fast the pressed spot follows the pointer */
   cursorLambda: 9,
 };

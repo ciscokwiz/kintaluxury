@@ -137,12 +137,21 @@ export const PRODUCTS: Product[] = RAW.map((p, index) => {
     // every garment has a plain back; #01 carries the "Liberty or Death" back print
     back: `${ASSET_BASE}garments/${id}-back.webp`,
     aspect: 1000 / 1200,
-    restYaw: yawDeg * DEG_TO_RAD,
+    restYaw: (yawDeg + (p.kind === "hoodie" ? -7 : p.kind === "crewneck" ? -4 : p.kind === "longsleeve" ? 3 : 0)) * DEG_TO_RAD,
     restRoll: rollDeg * DEG_TO_RAD,
   };
 });
 
 export const COUNT = PRODUCTS.length;
+
+/** One hanger per design; alternate colors remain available in the detail view. */
+export const RACK_PRODUCTS = PRODUCTS.filter((product, index) =>
+  PRODUCTS.findIndex((other) => other.groupId === product.groupId) === index,
+);
+export const RACK_INDICES = RACK_PRODUCTS.map((product) => product.index);
+export function rackIndexOf(index: number): number {
+  return RACK_PRODUCTS.find((product) => product.groupId === PRODUCTS[index]?.groupId)?.index ?? 0;
+}
 
 /** The initial color for a product route. A variant can then be chosen by ID. */
 export function getProductBySlug(slug: string): Product | undefined {

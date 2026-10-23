@@ -14,8 +14,8 @@ interface RailProps {
 export function Rail({ m, material, groupRef }: RailProps) {
   const len = m.railRight - m.railLeft;
   const cx = (m.railLeft + m.railRight) / 2;
-  const standOff = m.lh(3);
-  const flangeR = m.lh(1.2);
+  const standOff = m.lh(1.7);
+  const flangeR = m.lh(0.48);
 
   const geo = useMemo(
     () => ({

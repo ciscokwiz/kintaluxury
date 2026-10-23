@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "garments": "python3 scripts/make_garments.py scripts/photos",
-    "build:artifact": "node scripts/build-artifact.mjs"
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "test:rack": "node scripts/test-rack.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

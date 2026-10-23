@@ -225,8 +225,8 @@ export function stepFabric(s: FabricState, u: FabricUniforms, t: FabricTargets, 
     s.wave > eps ||
     Math.abs(s.sway) > eps ||
     s.drag.lengthSq() > eps * eps ||
-    s.hover > eps ||
-    s.press > eps
+    (s.hover > eps && FABRIC.breathe > 0) ||
+    (s.press > eps && FABRIC.ripple > 0)
   );
 }
 
