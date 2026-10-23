@@ -4,7 +4,7 @@
   right: 0;
   bottom: 0;
   height: 34px;
-  z-index: 10;
+  z-index: 45;
   overflow: hidden;
   background: var(--navy-strip);
   display: flex;
@@ -29,11 +29,10 @@
   display: inline-flex;
   align-items: center;
   font-size: 12px;
-  font-weight: 500;
-  font-style: italic;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: #fff;
+  color: var(--navy);
   white-space: nowrap;
 }
 
@@ -43,7 +42,7 @@
   height: 4px;
   margin: 0 24px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--navy);
 }
 
 @keyframes marquee {

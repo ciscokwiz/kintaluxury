@@ -92,9 +92,10 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const hookTop = hookCy + hookR + hookTube;
   const hangerTop = -lh(4.8);
 
-  const garmentH = lh(bp === "mobile" ? 40 : 42);
+  // A wider, shorter silhouette gives the mockups a natural boxy fit.
+  const garmentH = lh(bp === "mobile" ? 32 : 34);
   const texel = garmentH / TEX.h;
-  const garmentW = TEX.w * texel;
+  const garmentW = TEX.w * texel * 1.26;
   const garmentCy = hangerTop + TEX.hangerTop * texel - garmentH / 2;
   const frontWidth = garmentW * 0.88;
 
@@ -122,8 +123,12 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
 
   const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - HEM_FRAC[p.kind] * garmentH);
   const teeHem = garmentCy + garmentH / 2 - HEM_FRAC.tee * garmentH;
-  const detailScale = lh(71 - 16) / (hookTop - teeHem);
-  const detailPivotY = y(16) - hookTop * detailScale;
+  const detailScale = Math.min(
+    lh(71 - 16) / (hookTop - teeHem),
+    (worldW * (bp === "mobile" ? 0.86 : 0.62)) / garmentW,
+  );
+  // Keep the whole silhouette inside portrait screens, centered above controls.
+  const detailPivotY = y((16 + 71) / 2) - ((hookTop + teeHem) / 2) * detailScale;
 
   return {
     widthPx,

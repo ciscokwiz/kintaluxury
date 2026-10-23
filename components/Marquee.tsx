@@ -39,7 +39,7 @@ export default function Marquee() {
   );
 
   return (
-    <div className={styles.strip} data-home-fade>
+    <div className={styles.strip}>
       <div className={styles.track} style={{ animationDuration: `${duration}s` }}>
         <div ref={half} className={styles.half}>
           {segment}

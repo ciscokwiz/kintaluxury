@@ -1,6 +1,7 @@
-// next/link stand-in for the standalone build (a plain anchor is all the page needs).
+// Native hash anchors preserve keyboard and modified-click behavior.
 import type { AnchorHTMLAttributes } from "react";
+import { artifactHref } from "./navigation-shim";
 
 export default function Link({ href, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
-  return <a href={href === "/" ? "#" : href} {...rest} />;
+  return <a href={artifactHref(href)} {...rest} />;
 }

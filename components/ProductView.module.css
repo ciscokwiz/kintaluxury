@@ -25,144 +25,136 @@
   pointer-events: none;
 }
 
-.ui [data-pv-item] {
-  opacity: 0;
-}
+.ui [data-pv-item] { opacity: 0; }
+.ui[data-open] button, .ui[data-open] a { pointer-events: auto; }
+.slot { position: absolute; left: 50%; transform: translate(-50%, -50%); }
+.prev { left: 8vw; top: 46vh; }
+.next { left: 92vw; top: 46vh; }
 
-.ui[data-open] button,
-.ui[data-open] a {
-  pointer-events: auto;
-}
-
-.slot {
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.prev {
-  left: 31.6vw;
-  top: 45vh;
-}
-
-.next {
-  left: 68.4vw;
-  top: 45vh;
-}
-
-.counter {
-  top: 85vh;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.title {
-  top: 89vh;
-  width: 90vw;
-  text-align: center;
-}
-
+.title { top: 78vh; width: 82vw; text-align: center; }
 .title h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 500;
-  font-style: italic;
-  letter-spacing: -0.01em;
-  color: var(--navy);
-  line-height: 1.2;
+  font-size: clamp(17px, 1.6vw, 23px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
+  color: var(--ink, #161616);
+  line-height: 1.15;
 }
+.faceSlot { top: 84vh; }
+.pill { top: 90vh; }
 
-.pill {
-  top: 94.5vh;
+.faceToggle {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid rgba(22, 22, 22, 0.5);
+  border-radius: 999px;
 }
-
-.progress {
-  top: 98.5vh;
+.faceToggle button {
+  min-width: 63px;
+  min-height: 31px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink, #161616);
+  font: 600 10px/1 var(--font-inter), system-ui, sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease;
 }
-
-.bar {
-  width: 22px;
-  height: 3px;
-  border-radius: 3px;
-  /* --navy at 60 % (the item's own opacity is animated by gsap) */
-  background: rgba(47, 54, 86, 0.6);
-}
+.faceToggle button[aria-pressed="true"] { background: var(--ink, #161616); color: #fff; }
+.faceToggle button:disabled { cursor: default; }
 
 .arrow {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(110, 111, 126, 0.7);
+  border: 1px solid rgba(22, 22, 22, 0.4);
   background: transparent;
-  color: var(--navy);
-  font: 500 12px/1 var(--font-inter), system-ui, sans-serif;
+  color: var(--ink, #161616);
+  font: 500 17px/1 var(--font-inter), system-ui, sans-serif;
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+  transition: background-color 180ms ease, color 180ms ease;
 }
-
-.arrow:hover {
-  background: #c9d6f0;
+.arrow:hover { background: var(--accent, #b9ff39); }
+.arrow:active { background: var(--ink, #161616); color: white; }
+.arrow:disabled { cursor: default; }
+.arrow:focus-visible, .close:focus-visible, .faceToggle button:focus-visible, .tag:focus-visible {
+  outline: 2px solid var(--ink, #161616);
+  outline-offset: 5px;
 }
-
-.arrow:active {
-  background: var(--navy);
-  border-color: var(--navy);
-  color: #fff;
-  transition-duration: 80ms;
-}
-
-.arrow:focus-visible,
-.close:focus-visible {
-  outline: 1px solid var(--navy);
-  outline-offset: 3px;
-}
-
-.closeSlot {
-  position: absolute;
-  right: 2.1vw;
-  top: 5vh;
-}
-
+.closeSlot { position: absolute; right: 2.1vw; top: 4vh; }
 .close {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
   background: none;
   border: 0;
   padding: 0;
-  font: 500 12px/1 var(--font-inter), system-ui, sans-serif;
+  font: 500 11px/1 var(--font-inter), system-ui, sans-serif;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--navy);
+  letter-spacing: 0.06em;
+  color: var(--ink, #161616);
   cursor: pointer;
-  transition: opacity 150ms ease;
 }
+.close span { font-size: 18px; }
+.close:hover { opacity: 0.6; }
 
-.close:hover {
-  opacity: 0.55;
+.variants { position: absolute; top: 22vh; left: calc(50% + min(18vw, 235px)); }
+.tags { display: flex; align-items: flex-start; gap: 14px; padding-top: 54px; }
+.tag {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 93px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  border-radius: 7px 7px 2px 2px;
+  box-shadow: 2px 4px 7px rgba(0, 0, 0, 0.12);
+  padding: 18px 0 7px;
+  cursor: pointer;
+  transform-origin: 50% -48px;
+  transform: rotate(-6deg);
+  transition: transform 220ms ease, box-shadow 220ms ease;
 }
-
-@media (max-width: 1023px) and (min-width: 640px) {
-  .title h2 {
-    font-size: 18px;
-  }
+.tag::before {
+  content: "";
+  position: absolute;
+  height: 55px;
+  width: 1px;
+  top: -49px;
+  left: 50%;
+  background: rgba(22, 22, 22, 0.45);
 }
+.tag:nth-child(even) { transform: translateY(12px) rotate(7deg); }
+.tag:hover { transform: rotate(0deg) translateY(-4px); }
+.tag[aria-pressed="true"] { outline: 2px solid var(--ink, #161616); outline-offset: 4px; }
+.tag > span:last-child { writing-mode: vertical-rl; font: 600 9px/1 var(--font-inter), system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.05em; }
+.tagEyelet { position: absolute; top: 7px; width: 4px; height: 4px; border: 1px solid currentColor; border-radius: 50%; }
 
 @media (max-width: 639px) {
-  .title h2 {
-    font-size: 17px;
-  }
-  .prev,
-  .next {
-    top: 85vh;
-  }
-  .prev {
-    left: calc(50% - 72px);
-  }
-  .next {
-    left: calc(50% + 72px);
-  }
+  .prev { left: 8vw; }
+  .next { left: 92vw; }
+  .arrow { width: 36px; height: 36px; }
+  .title { top: 77vh; width: 90vw; }
+  .title h2 { font-size: 16px; }
+  .faceSlot { top: 84vh; }
+  .faceToggle button { min-height: 34px; }
+  .closeSlot { right: 5vw; top: 2vh; }
+  .variants { top: 14vh; left: auto; right: 5vw; }
+  .tags { gap: 10px; padding-top: 30px; }
+  .tag { width: 27px; height: 70px; transform-origin: 50% -29px; }
+  .tag::before { top: -30px; height: 36px; }
+  .tag > span:last-child { font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag, .arrow, .faceToggle button { transition: none; }
 }

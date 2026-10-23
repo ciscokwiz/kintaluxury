@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Lobster_Two } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const script = Lobster_Two({ subsets: ["latin"], weight: "700", style: "italic", variable: "--font-script", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Kinta & Co. — The New African Icon",
@@ -17,12 +13,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#dfdfdc",
+  themeColor: "#eeefeb",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${script.variable}`}>
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

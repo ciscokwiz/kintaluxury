@@ -52,9 +52,10 @@ export default function Header() {
         <span className={styles.co}>&amp; Co.</span>
       </Link>
 
-      <a className={`${styles.nav} ${styles.right}`} href={BRAND.instagram} target="_blank" rel="noopener noreferrer" data-home-fade>
-        Contact
-      </a>
+      <div className={styles.right} data-home-fade>
+        <a className={styles.nav} href={BRAND.instagram} target="_blank" rel="noopener noreferrer">Contact</a>
+        <Link className={styles.nav} href="/cart">Bag</Link>
+      </div>
     </header>
   );
 }

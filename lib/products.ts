@@ -1,11 +1,25 @@
 import { MOTION, DEG_TO_RAD } from "./motion";
 
 export type GarmentKind = "tee" | "longsleeve" | "crewneck" | "hoodie";
+export const PRODUCT_SIZES = ["S", "M", "L", "XL"] as const;
+export type ProductSize = (typeof PRODUCT_SIZES)[number];
 
 export interface Product {
   id: string;
   index: number;
   name: string;
+  /** Shared identity and URL for a design's color variants. */
+  groupId: string;
+  slug: string;
+  title: string;
+  colorName: string;
+  colorHex: string;
+  description: string;
+  /** Fit choices only. Availability is confirmed by Kinta before an order. */
+  sizes: readonly ProductSize[];
+  /** Null until a real selling price is supplied by the store. */
+  price: number | null;
+  currency: "NGN";
   kind: GarmentKind;
   front: string;
   back?: string;
@@ -33,17 +47,52 @@ export const HEM_FRAC: Record<GarmentKind, number> = {
   hoodie: 1166 / 1200,
 };
 
-const RAW: { name: string; kind: GarmentKind }[] = [
-  { name: "The Liberty Tee — Bone", kind: "tee" },
-  { name: "The New African Icon Tee — Black", kind: "tee" },
-  { name: "Restricted Eagle Tee — Azure", kind: "tee" },
-  { name: "Kinta. Track Hoodie — Sky", kind: "hoodie" },
-  { name: "KINTA™ Logo Crewneck — Forest", kind: "crewneck" },
-  { name: "New African Icon Long Sleeve — Black", kind: "longsleeve" },
-  { name: "KINTA™ Logo Tee — Sand", kind: "tee" },
-  { name: "Restricted Eagle Tee — Onyx", kind: "tee" },
-  { name: "Kinta. Track Hoodie — Navy", kind: "hoodie" },
-  { name: "KINTA™ Logo Tee — Slate", kind: "tee" },
+type ProductDesign = { title: string; description: string };
+
+const DESIGNS = {
+  "liberty-tee": {
+    title: "The Liberty Tee",
+    description: "The KINTA™ wordmark on the front. The Liberty or Death artwork on the back. A statement from every angle.",
+  },
+  "new-african-icon-tee": {
+    title: "The New African Icon Tee",
+    description: "The New African Icon graphic, placed front and centre. A Kinta statement in black.",
+  },
+  "restricted-eagle-tee": {
+    title: "Restricted Eagle Tee",
+    description: "The Restricted eagle, diamond and Africa artwork. Choose Azure or Onyx to make it your own.",
+  },
+  "track-hoodie": {
+    title: "Kinta. Track Hoodie",
+    description: "Kinta's hooded silhouette with contrast sleeve stripes and a chest wordmark. Available to enquire about in Sky and Navy.",
+  },
+  "logo-crewneck": {
+    title: "KINTA™ Logo Crewneck",
+    description: "A forest-green crewneck with the KINTA™ wordmark. The signature, kept simple.",
+  },
+  "new-african-icon-long-sleeve": {
+    title: "New African Icon Long Sleeve",
+    description: "The New African Icon artwork on a long-sleeve silhouette. The same statement, with a different shape.",
+  },
+  "logo-tee": {
+    title: "KINTA™ Logo Tee",
+    description: "The KINTA™ wordmark on a clean tee silhouette. Choose between Sand and Slate.",
+  },
+} satisfies Record<string, ProductDesign>;
+
+type RawProduct = { name: string; kind: GarmentKind; groupId: keyof typeof DESIGNS; colorName: string; colorHex: string };
+
+const RAW: RawProduct[] = [
+  { name: "The Liberty Tee — Bone", kind: "tee", groupId: "liberty-tee", colorName: "Bone", colorHex: "#e5e2d8" },
+  { name: "The New African Icon Tee — Black", kind: "tee", groupId: "new-african-icon-tee", colorName: "Black", colorHex: "#191919" },
+  { name: "Restricted Eagle Tee — Azure", kind: "tee", groupId: "restricted-eagle-tee", colorName: "Azure", colorHex: "#1eaddb" },
+  { name: "Kinta. Track Hoodie — Sky", kind: "hoodie", groupId: "track-hoodie", colorName: "Sky", colorHex: "#9fbcd0" },
+  { name: "KINTA™ Logo Crewneck — Forest", kind: "crewneck", groupId: "logo-crewneck", colorName: "Forest", colorHex: "#203c2d" },
+  { name: "New African Icon Long Sleeve — Black", kind: "longsleeve", groupId: "new-african-icon-long-sleeve", colorName: "Black", colorHex: "#191919" },
+  { name: "KINTA™ Logo Tee — Sand", kind: "tee", groupId: "logo-tee", colorName: "Sand", colorHex: "#cfc3a7" },
+  { name: "Restricted Eagle Tee — Onyx", kind: "tee", groupId: "restricted-eagle-tee", colorName: "Onyx", colorHex: "#171719" },
+  { name: "Kinta. Track Hoodie — Navy", kind: "hoodie", groupId: "track-hoodie", colorName: "Navy", colorHex: "#202944" },
+  { name: "KINTA™ Logo Tee — Slate", kind: "tee", groupId: "logo-tee", colorName: "Slate", colorHex: "#626e7b" },
 ];
 
 /** small deterministic PRNG so the rack always hangs the same way */
@@ -74,6 +123,15 @@ export const PRODUCTS: Product[] = RAW.map((p, index) => {
     id,
     index,
     name: p.name,
+    groupId: p.groupId,
+    slug: p.groupId,
+    title: DESIGNS[p.groupId].title,
+    colorName: p.colorName,
+    colorHex: p.colorHex,
+    description: DESIGNS[p.groupId].description,
+    sizes: PRODUCT_SIZES,
+    price: null,
+    currency: "NGN",
     kind: p.kind,
     front: `${ASSET_BASE}garments/${id}-front.webp`,
     // every garment has a plain back; #01 carries the "Liberty or Death" back print
@@ -85,3 +143,18 @@ export const PRODUCTS: Product[] = RAW.map((p, index) => {
 });
 
 export const COUNT = PRODUCTS.length;
+
+/** The initial color for a product route. A variant can then be chosen by ID. */
+export function getProductBySlug(slug: string): Product | undefined {
+  return PRODUCTS.find((product) => product.slug === slug);
+}
+
+export function getProductVariants(productOrGroupId: Product | string): Product[] {
+  const groupId = typeof productOrGroupId === "string" ? productOrGroupId : productOrGroupId.groupId;
+  return PRODUCTS.filter((product) => product.groupId === groupId);
+}
+
+export function formatPrice(product: Pick<Product, "price" | "currency">): string {
+  if (product.price === null) return "Price on request";
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: product.currency, maximumFractionDigits: 0 }).format(product.price);
+}

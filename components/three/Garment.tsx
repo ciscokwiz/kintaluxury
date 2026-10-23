@@ -25,7 +25,16 @@ function drapePanel(m: RackMetrics, zOffset: number, flipU: boolean) {
   const uv = g.attributes.uv as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
-    pos.setZ(i, zOffset - m.drapeK * x * x);
+    const v = 1 - uv.getY(i);
+    const u = x / (m.garmentW * 0.5);
+    const fall = THREE.MathUtils.smoothstep(v, 0.15, 0.82);
+    // Broaden the body below the armholes, with shallow hanging folds rather
+    // than the rigid rectangular surface of the original mockup.
+    const body = Math.exp(-Math.pow(u / 0.65, 6));
+    pos.setX(i, x * (1 + 0.14 * body * THREE.MathUtils.smoothstep(v, 0.25, 0.5)));
+    const fold = Math.sin(u * 22 + Math.sin(v * 5) * 0.7) * m.garmentW * 0.009 * fall;
+    const shoulder = Math.sin(u * 7) * m.garmentW * 0.0006 * (1 - fall);
+    pos.setZ(i, zOffset - m.drapeK * x * x + fold + shoulder);
     if (flipU) uv.setX(i, 1 - uv.getX(i));
   }
   g.computeVertexNormals();
@@ -62,6 +71,7 @@ export function createFabricMaterial(map: THREE.Texture, panel: "front" | "back"
     metalness: 0,
     side: THREE.DoubleSide,
     transparent: fade,
+    alphaTest: 0.5,
     envMapIntensity: 0.35,
   });
   const inner = panel === "front" ? "!gl_FrontFacing" : "gl_FrontFacing";
@@ -106,9 +116,9 @@ export function Garment({ geo, mats, rootRef, yawRef }: GarmentProps) {
       <group ref={yawRef}>
         <mesh geometry={geo.ring} material={mats.chrome} />
         <mesh geometry={geo.stem} material={mats.chrome} />
-        <mesh geometry={geo.hanger} material={mats.wood} />
-        <mesh geometry={geo.back} material={mats.back} />
-        <mesh geometry={geo.front} material={mats.front} />
+        <mesh geometry={geo.hanger} material={mats.wood} castShadow />
+        <mesh geometry={geo.back} material={mats.back} castShadow />
+        <mesh geometry={geo.front} material={mats.front} castShadow />
       </group>
     </group>
   );

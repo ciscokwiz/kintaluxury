@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import { COUNT } from "./products";
+import { COUNT, PRODUCTS } from "./products";
 
 export type ViewMode = "rack" | "opening" | "detail" | "closing";
+export type GarmentFace = "front" | "back";
 
 interface UIState {
   /** garment under the pointer (or keyboard focus) on the rack */
@@ -13,11 +14,14 @@ interface UIState {
   ready: boolean;
   /** bumps on every prev/next so the detail fade restarts even on wrap to the same index */
   navTick: number;
+  face: GarmentFace;
   setHovered: (i: number | null) => void;
   setReady: () => void;
   open: (i: number) => void;
   close: () => void;
   go: (dir: 1 | -1) => void;
+  selectVariant: (index: number) => void;
+  setFace: (face: GarmentFace) => void;
   setMode: (m: ViewMode) => void;
 }
 
@@ -27,13 +31,14 @@ export const useStore = create<UIState>((set, get) => ({
   mode: "rack",
   ready: false,
   navTick: 0,
+  face: "front",
   setHovered: (i) => {
     if (get().hovered !== i) set({ hovered: i });
   },
   setReady: () => set({ ready: true }),
   open: (i) => {
     if (get().mode !== "rack") return;
-    set({ active: i, mode: "opening", hovered: null });
+    set({ active: i, mode: "opening", hovered: null, face: "front" });
   },
   close: () => {
     const m = get().mode;
@@ -41,9 +46,28 @@ export const useStore = create<UIState>((set, get) => ({
   },
   go: (dir) => {
     const { mode, active, navTick } = get();
-    if (mode !== "detail" && mode !== "opening") return;
+    if (mode !== "detail") return;
     if (active === null) return;
-    set({ active: (active + dir + COUNT) % COUNT, navTick: navTick + 1 });
+    const groups = PRODUCTS.filter((product, index) => PRODUCTS.findIndex((other) => other.groupId === product.groupId) === index);
+    const current = groups.findIndex((product) => product.groupId === PRODUCTS[active].groupId);
+    const next = groups[(current + dir + groups.length) % groups.length];
+    set({ active: next.index, navTick: navTick + 1, face: "front" });
+  },
+  selectVariant: (index) => {
+    const { mode, active, navTick } = get();
+    if (mode !== "detail" || index === active || index < 0 || index >= COUNT) return;
+    set({ active: index, navTick: navTick + 1, face: "front" });
+  },
+  setFace: (face) => {
+    if (get().mode !== "detail") return;
+    const phase = face === "back" ? Math.PI : 0;
+    detail.spinTarget = phase + Math.round((detail.spin - phase) / (Math.PI * 2)) * Math.PI * 2;
+    if (sim.reduced) {
+      detail.spin = detail.spinTarget;
+      detail.spinV = 0;
+    }
+    set({ face });
+    sim.wakeDetail();
   },
   setMode: (mode) => set(mode === "rack" ? { mode, active: null } : { mode }),
 }));

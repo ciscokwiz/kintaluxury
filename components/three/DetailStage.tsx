@@ -80,7 +80,7 @@ function DetailGarment() {
     };
     window.addEventListener("pointermove", track, { passive: true });
     const down = (e: PointerEvent) => {
-      if (useStore.getState().mode !== "detail") return;
+      if (useStore.getState().mode !== "detail" || !e.isPrimary || e.button !== 0) return;
       dragging = true;
       pointer.current.spinning = true;
       startX = e.clientX;
@@ -97,6 +97,12 @@ function DetailGarment() {
       dragging = false;
       pointer.current.spinning = false;
       detail.spinTarget = Math.round(detail.spinTarget / Math.PI) * Math.PI;
+      const turns = Math.round(detail.spinTarget / Math.PI);
+      useStore.setState({ face: Math.abs(turns % 2) === 1 ? "back" : "front" });
+      if (sim.reduced) {
+        detail.spin = detail.spinTarget;
+        detail.spinV = 0;
+      }
       invalidate();
     };
     el.addEventListener("pointerdown", down);
@@ -184,6 +190,7 @@ function DetailGarment() {
 export default function DetailStage({ interactive }: { interactive: boolean }) {
   return (
     <Canvas
+      shadows="variance"
       frameloop="demand"
       dpr={[1, 2]}
       gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}

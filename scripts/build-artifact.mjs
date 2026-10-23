@@ -1,18 +1,21 @@
-/**
- * Bundles the storefront into one self-contained page for a claude.ai
- * Artifact (no Next server): artifact/dist/index.html + garments/*.webp.
- * The fabric tuning panel is switched on in this build.
- *
- *   node scripts/build-artifact.mjs
- */
+/** Bundle the real storefront and shopping screens into one offline HTML file. */
 import { build } from "esbuild";
-import { mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "artifact", "dist");
-mkdirSync(join(out, "garments"), { recursive: true });
+mkdirSync(out, { recursive: true });
+
+const assets = {};
+for (const folder of ["garments", "product-photos"]) {
+  for (const name of readdirSync(join(root, "public", folder))) {
+    if (!/\.(?:webp|png)$/i.test(name)) continue;
+    const type = name.endsWith(".webp") ? "image/webp" : "image/png";
+    assets[`${folder}/${name}`] = `data:${type};base64,${readFileSync(join(root, "public", folder, name)).toString("base64")}`;
+  }
+}
 
 const result = await build({
   entryPoints: [join(root, "artifact", "main.tsx")],
@@ -23,38 +26,45 @@ const result = await build({
   jsx: "automatic",
   write: false,
   outdir: out,
-  legalComments: "none",
+  legalComments: "inline",
   logLevel: "warning",
   tsconfig: join(root, "tsconfig.json"),
-  alias: { "next/link": join(root, "artifact", "link-shim.tsx") },
+  alias: {
+    "next/link": join(root, "artifact", "link-shim.tsx"),
+    "next/navigation": join(root, "artifact", "navigation-shim.ts"),
+    "next/image": join(root, "artifact", "image-shim.tsx"),
+  },
   define: {
     "process.env.NODE_ENV": '"production"',
-    "process.env.NEXT_PUBLIC_TUNE": '"1"',
-    "process.env.NEXT_PUBLIC_ASSET_BASE": '""',
+    "process.env.NEXT_PUBLIC_TUNE": '"0"',
+    "process.env.NEXT_PUBLIC_ASSET_BASE": '"/"',
+    "process.env.NEXT_PUBLIC_STANDALONE": '"1"',
   },
   banner: { js: 'var process=globalThis.process||{env:{NODE_ENV:"production"}};' },
 });
 
-const js = result.outputFiles.find((f) => f.path.endsWith(".js")).text;
-const css = result.outputFiles.find((f) => f.path.endsWith(".css"))?.text ?? "";
+const js = result.outputFiles.find((file) => file.path.endsWith(".js")).text;
+const css = result.outputFiles.find((file) => file.path.endsWith(".css"))?.text ?? "";
 const globals = readFileSync(join(root, "app", "globals.css"), "utf8");
-// keep the inline script from closing itself early
 const safeJs = js.replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
-
-const html = `<title>Kinta &amp; Co. Rack</title>
-<meta name="description" content="Kinta &amp; Co. 3D clothing rack with cloth micro-motion and a live tuning panel.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;1,400;1,500&family=Lobster+Two:ital,wght@1,700&display=swap">
-<style>
-/* One deliberate look: the light pegboard shop wall, in every viewer theme. */
-:root { color-scheme: light; --font-inter: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; --font-script: "Lobster Two", "Brush Script MT", cursive; }
-${globals}
-${css}
-</style>
+const assetJson = JSON.stringify(assets).replace(/</g, "\\u003c");
+const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eeefeb">
+<title>Kinta &amp; Co. — The New African Icon</title>
+<meta name="description" content="Explore Kinta & Co.'s interactive clothing rack, choose a color and size, and save your selection.">
+<style>:root { color-scheme: light; }\n${globals}\n${css}</style>
+</head>
+<body>
 <div id="root"></div>
+<noscript>This interactive storefront requires JavaScript. Contact @kinta.and.co on Instagram for product enquiries.</noscript>
+<script>window.__KINTA_ARTIFACT_ASSETS__=${assetJson};</script>
 <script>${safeJs}</script>
+</body>
+</html>
 `;
-writeFileSync(join(out, "index.html"), html);
-for (const f of readdirSync(join(root, "public", "garments"))) copyFileSync(join(root, "public", "garments", f), join(out, "garments", f));
-console.log(`artifact/dist/index.html ${(html.length / 1024).toFixed(0)} KB`);
+for (const name of ["index.html", "kinta-website.html"]) writeFileSync(join(out, name), html);
+console.log(`Built artifact/dist/kinta-website.html: ${(Buffer.byteLength(html) / 1024 / 1024).toFixed(2)} MB, ${Object.keys(assets).length} embedded images; no server required.`);

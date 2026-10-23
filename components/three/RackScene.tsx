@@ -467,6 +467,7 @@ export default function RackScene() {
     <>
       <div className={styles.rack} style={{ opacity: ready ? 1 : 0, transitionDuration: `${MOTION.sceneFadeMs}ms` }}>
         <Canvas
+          shadows="variance"
           frameloop="demand"
           dpr={[1, 2]}
           gl={{ alpha: true, antialias: true, toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}

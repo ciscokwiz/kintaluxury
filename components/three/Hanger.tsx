@@ -11,7 +11,7 @@ const WOOD_LIGHT = new THREE.Color("#7A3A2C");
 export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
   const t = m.texel;
   const top = m.hangerTop;
-  const tipX = TEX.hangerTipX * t;
+  const tipX = TEX.hangerTipX * (m.garmentW / TEX.w);
   const drop = (TEX.hangerTipTop - TEX.hangerTop) * t;
   const th = TEX.hangerThick * t;
 
