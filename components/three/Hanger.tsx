@@ -4,8 +4,8 @@ import * as THREE from "three";
 import type { RackMetrics } from "./useRackLayout";
 import { TEX } from "./useRackLayout";
 
-const WOOD_DARK = new THREE.Color("#5A2620");
-const WOOD_LIGHT = new THREE.Color("#7A3A2C");
+const WOOD_DARK = new THREE.Color("#4d2819");
+const WOOD_LIGHT = new THREE.Color("#9b5b34");
 
 /** Wooden shoulder bar: a flattened arch, extruded, bevelled and bent to the drape. */
 export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
@@ -17,14 +17,17 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
 
   const s = new THREE.Shape();
   s.moveTo(-tipX, top - drop);
-  s.bezierCurveTo(-tipX * 0.62, top - drop * 0.42, -tipX * 0.28, top, 0, top);
-  s.bezierCurveTo(tipX * 0.28, top, tipX * 0.62, top - drop * 0.42, tipX, top - drop);
+  s.bezierCurveTo(-tipX * 0.65, top - drop * 0.55, -tipX * 0.25, top - drop * 0.3, -tipX * 0.14, top - drop * 0.25);
+  s.lineTo(-tipX * 0.1, top);
+  s.quadraticCurveTo(0, top + th * 0.16, tipX * 0.1, top);
+  s.lineTo(tipX * 0.14, top - drop * 0.25);
+  s.bezierCurveTo(tipX * 0.25, top - drop * 0.3, tipX * 0.65, top - drop * 0.55, tipX, top - drop);
   s.quadraticCurveTo(tipX + th * 0.55, top - drop - th * 0.5, tipX - th * 0.15, top - drop - th);
-  s.bezierCurveTo(tipX * 0.6, top - drop * 0.5 - th, tipX * 0.28, top - th * 0.95, 0, top - th * 0.95);
-  s.bezierCurveTo(-tipX * 0.28, top - th * 0.95, -tipX * 0.6, top - drop * 0.5 - th, -tipX + th * 0.15, top - drop - th);
+  s.bezierCurveTo(tipX * 0.65, top - drop * 0.55 - th, tipX * 0.25, top - drop * 0.3 - th, 0, top - drop * 0.26 - th);
+  s.bezierCurveTo(-tipX * 0.25, top - drop * 0.3 - th, -tipX * 0.65, top - drop * 0.55 - th, -tipX + th * 0.15, top - drop - th);
   s.quadraticCurveTo(-tipX - th * 0.55, top - drop - th * 0.5, -tipX, top - drop);
 
-  const depth = m.layer * 1.1;
+  const depth = 26 * t;
   const bevel = 1.4 * t;
   const g = new THREE.ExtrudeGeometry(s, {
     depth,
@@ -44,7 +47,8 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
     const x = pos.getX(i);
     pos.setZ(i, pos.getZ(i) - m.drapeK * x * x);
     const k = 1 - Math.min(1, Math.abs(x) / tipX);
-    c.copy(WOOD_DARK).lerp(WOOD_LIGHT, 0.25 + 0.75 * k);
+    const grain = Math.sin(x / t * 0.15 + pos.getY(i) / t * 0.6) * 0.045;
+    c.copy(WOOD_DARK).lerp(WOOD_LIGHT, 0.24 + 0.62 * k + grain);
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
@@ -56,7 +60,7 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
 
 /** Chrome hook: a ~300° arc around the rail plus a short stem down into the hanger. */
 export function createHookGeometries(m: RackMetrics) {
-  const ring = new THREE.TorusGeometry(m.hookR, m.hookTube, 10, 40, (300 * Math.PI) / 180);
+  const ring = new THREE.TorusGeometry(m.hookR, m.hookTube, 10, 40, (285 * Math.PI) / 180);
   // the arc starts at the bottom (where the stem joins) and ends lower-left
   ring.rotateZ((-105 * Math.PI) / 180);
   ring.translate(0, m.hookCy, 0);
@@ -68,9 +72,9 @@ export function createHookGeometries(m: RackMetrics) {
 }
 
 export function createWoodMaterial() {
-  return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, envMapIntensity: 0.6 });
+  return new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.46, metalness: 0, envMapIntensity: 0.35 });
 }
 
 export function createChromeMaterial() {
-  return new THREE.MeshStandardMaterial({ color: "#f2f2f2", metalness: 1, roughness: 0.12 });
+  return new THREE.MeshStandardMaterial({ color: "#c5cccf", metalness: 1, roughness: 0.16, envMapIntensity: 1.15 });
 }

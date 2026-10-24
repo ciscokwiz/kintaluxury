@@ -8,7 +8,7 @@ import { PRODUCTS } from "@/lib/products";
 import { MOTION, DEG_TO_RAD, FABRIC } from "@/lib/motion";
 import { detail, sim, useStore } from "@/lib/store";
 import { CAM_Z, FOV, useRackMetrics } from "./useRackLayout";
-import { Garment, createFabricMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
+import { Garment, createFabricMaterial, createSeamMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
 import { createChromeMaterial, createWoodMaterial } from "./Hanger";
 import { StudioLights } from "./StudioLights";
 import { TEXTURE_URLS, configureTextures } from "./RackScene";
@@ -36,8 +36,13 @@ function DetailGarment() {
   const textures = useTexture(TEXTURE_URLS);
   useMemo(() => configureTextures(textures, Math.min(8, gl.capabilities.getMaxAnisotropy())), [textures, gl]);
 
-  const geo = useMemo(() => createGarmentGeometries(m), [m]);
-  useEffect(() => () => disposeGarmentGeometries(geo), [geo]);
+  const geometries = useMemo(() => ({
+    tee: createGarmentGeometries(m, "tee"),
+    longsleeve: createGarmentGeometries(m, "longsleeve"),
+    crewneck: createGarmentGeometries(m, "crewneck"),
+    hoodie: createGarmentGeometries(m, "hoodie"),
+  }), [m]);
+  useEffect(() => () => Object.values(geometries).forEach(disposeGarmentGeometries), [geometries]);
 
   // cloth for the product view: one uniform set per product, one eased state
   const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
@@ -51,13 +56,18 @@ function DetailGarment() {
     const wood = createWoodMaterial();
     const chrome = createChromeMaterial();
     wood.transparent = chrome.transparent = true;
-    return PRODUCTS.map((_, i) => ({
+    return PRODUCTS.map((product, i) => ({
+      edge: createSeamMaterial(product.colorHex, true, cloth[i]),
       front: createFabricMaterial(textures[i * 2], "front", true, cloth[i]),
       back: createFabricMaterial(textures[i * 2 + 1], "back", true, cloth[i]),
       wood,
       chrome,
     }));
   }, [textures, cloth]);
+
+  useEffect(() => () => {
+    new Set(mats.flatMap((material) => Object.values(material))).forEach((material) => material.dispose());
+  }, [mats]);
 
   const root = useRef<THREE.Group>(null);
   const yaw = useRef<THREE.Group>(null);
@@ -151,7 +161,7 @@ function DetailGarment() {
     y.rotation.y = lerp(f.yaw, 0, p) + detail.spin + lean;
     y.scale.setScalar(lerp(f.scale, m.detailScale, p));
 
-    // cloth: the garment breathes while you look at it and answers the pointer
+    // Only motion from turning the hanger drives the default fabric response.
     syncFabricGlobals(sim.reduced);
     fabricGlobals.uTime.value += dt;
     let press = 0;
@@ -167,24 +177,24 @@ function DetailGarment() {
     const clothMoving = stepFabric(
       clothState,
       cloth[active],
-      { press, cursor, hover: 0.7, yawVelocity: detail.spinV, slideVelocity: 0 },
+      { press, cursor, hover: 0, yawVelocity: detail.spinV, slideVelocity: 0 },
       dt,
       m.garmentW,
     );
-    // while a product is open it keeps breathing gently; on the rack nothing moves at rest
-    if (clothMoving || (mode === "detail" && FABRIC.enabled && !sim.reduced)) moving = true;
+    if (clothMoving) moving = true;
     if (Math.abs(lean) > 1e-4) moving = true;
 
     const mt = mats[active];
     (mt.front as THREE.MeshStandardMaterial).opacity = detail.opacity;
     (mt.back as THREE.MeshStandardMaterial).opacity = detail.opacity;
+    (mt.edge as THREE.MeshStandardMaterial).opacity = detail.opacity;
     (mt.wood as THREE.MeshStandardMaterial).opacity = detail.opacity;
     (mt.chrome as THREE.MeshStandardMaterial).opacity = detail.opacity;
     if (moving) invalidate();
   });
 
   if (active === null) return null;
-  return <Garment geo={geo} mats={mats[active]} rootRef={root} yawRef={yaw} />;
+  return <Garment geo={geometries[PRODUCTS[active].kind]} mats={mats[active]} rootRef={root} yawRef={yaw} />;
 }
 
 export default function DetailStage({ interactive }: { interactive: boolean }) {

@@ -19,7 +19,7 @@ const SLIDERS: { key: NumKey; label: string; min: number; max: number; step: num
   { key: "rustle", label: "Neighbour rustle", min: 0, max: 1, step: 0.01 },
 ];
 
-const STORE_KEY = "kinta-fabric-v1";
+const STORE_KEY = "kinta-fabric-v2";
 
 function wake() {
   sim.wakeRack();

@@ -12,6 +12,7 @@ import math
 import os
 import random
 import sys
+import json
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
@@ -124,7 +125,12 @@ def bezier(p0, p1, p2, n=16):
     return out
 
 
-NECK_L, NECK_R = (392, 40), (608, 40)
+NECK_L, NECK_R = (395, 64), (605, 64)
+
+
+def neckline(kind):
+    depth = {"tee": 162, "longsleeve": 154, "crewneck": 146, "hoodie": 154}[kind]
+    return bezier(NECK_R, (500, depth), NECK_L, 32)
 
 
 def outline(kind):
@@ -132,33 +138,40 @@ def outline(kind):
     if kind == "tee":
         left = (
             [NECK_L]
-            + bezier((392, 40), (300, 60), (212, 92))
-            + [(150, 205), (82, 322), (180, 392), (244, 330)]
-            + bezier((244, 330), (240, 700), (236, 1072))
-            + [(500, 1080)]
+            + bezier(NECK_L, (290, 84), (212, 126))
+            + bezier((212, 126), (150, 230), (66, 336))
+            + [(160, 414), (218, 357)]
+            + bezier((218, 357), (190, 760), (198, 1070))
+            + bezier((198, 1070), (334, 1097), (500, 1080))
         )
     elif kind == "longsleeve":
         left = (
             [NECK_L]
-            + bezier((392, 40), (300, 60), (214, 94))
-            + [(158, 240), (128, 520), (112, 860), (106, 1012), (186, 1018), (204, 700), (232, 400), (252, 336)]
-            + bezier((252, 336), (246, 720), (244, 1106))
-            + [(500, 1112)]
+            + bezier(NECK_L, (285, 90), (208, 122))
+            + bezier((208, 122), (118, 450), (86, 982))
+            + [(100, 1020), (194, 1028), (218, 700), (244, 364)]
+            + bezier((244, 364), (206, 780), (214, 1104))
+            + bezier((214, 1104), (360, 1124), (500, 1112))
         )
     else:  # crewneck / hoodie: blousy body, rib hem + cuffs
         left = (
-            [NECK_L]
-            + bezier((392, 40), (300, 60), (210, 96))
-            + [(150, 250), (118, 540), (106, 880), (118, 1028), (122, 1086), (192, 1090), (196, 1030), (214, 720), (238, 420), (250, 340)]
-            + bezier((250, 340), (232, 760), (246, 1092))
-            + [(262, 1162), (500, 1166)]
+            ([NECK_L] if kind != "hoodie" else
+             [(500, 2)] + bezier((500, 2), (272, 0), (300, 150)))
+            + bezier(NECK_L if kind != "hoodie" else (300, 150), (280, 86), (204, 124))
+            + bezier((204, 124), (108, 440), (86, 914))
+            + [(104, 1030), (116, 1088), (208, 1096), (214, 1032), (236, 720), (254, 364)]
+            + bezier((254, 364), (190, 768), (216, 1098))
+            + [(232, 1154)]
+            + bezier((232, 1154), (360, 1176), (500, 1166))
         )
-    return left[:-1] + [left[-1]] + mirror(left[:-1])
+    contour = left + mirror(left[:-1])
+    if kind != "hoodie":
+        contour += neckline(kind)[1:]
+    return contour
 
 
 def neck_hole(kind):
-    depth = {"tee": 122, "longsleeve": 118, "crewneck": 108, "hoodie": 108}[kind]
-    return bezier(NECK_L, (500, depth + 18), NECK_R, 24) + bezier(NECK_R, (500, 70), NECK_L, 24)
+    return neckline(kind) + [NECK_R]
 
 
 def poly_mask(pts, blur_r=0.7):
@@ -209,17 +222,21 @@ def shading(kind, alpha, seed):
     m *= 1.04 - 0.10 * v - 0.07 * u - 0.10 * u * u
     # vertical hanging folds, stronger toward the hem
     folds = np.zeros_like(m)
-    for _ in range(7):
+    for _ in range(11):
         fx = rnd.uniform(-0.55, 0.55)
         wdt = rnd.uniform(0.025, 0.07)
-        amp = rnd.uniform(0.025, 0.06) * rnd.choice([-1, 1])
+        amp = rnd.uniform(0.045, 0.11) * rnd.choice([-1, 1])
         start = rnd.uniform(0.25, 0.6)
-        folds += amp * np.exp(-((u - fx - 0.05 * (v - start)) ** 2) / (2 * wdt * wdt)) * smoothstep(start, start + 0.25, v)
+        bend = 0.025 * np.sin(v * 8 + fx * 9) + 0.06 * (v - start)
+        ridge = (u - fx - bend) / wdt
+        folds += amp * (np.exp(-ridge * ridge / 2) - 0.65 * np.exp(-((ridge - 1.6) ** 2) / 2)) * smoothstep(start, start + 0.25, v)
     # drag lines from the collar to the armpits
     for s in (-1, 1):
-        d = (u * s - 0.28) - (0.55 - (v - 0.05) * 1.8) * 0.0
         line = np.exp(-(((v - 0.10) - (u * s - 0.12) * 0.55) ** 2) / (2 * 0.018 ** 2))
-        folds -= 0.05 * line * smoothstep(0.1, 0.35, u * s) * (1 - smoothstep(0.5, 0.62, u * s))
+        folds -= 0.10 * line * smoothstep(0.1, 0.35, u * s) * (1 - smoothstep(0.5, 0.75, u * s))
+        # Sleeve folds originate at the underarm, rather than repeating down the body.
+        sleeve = np.exp(-((np.abs(u) - 0.64) / 0.2) ** 2)
+        folds += 0.045 * sleeve * np.sin(v * 35 + u * 10) * smoothstep(0.12, 0.25, v) * (1 - smoothstep(0.65, 0.9, v))
     folds = blur(np.clip(folds * 2 + 0.5, 0, 1), 6) * 0.5 - 0.25
     m += folds
     # underarm shadows
@@ -235,9 +252,6 @@ def compose(kind, color, prints_front, seed, back=False, back_print=None, piping
     base = np.array(color, np.float32) / 255
     out_line = outline(kind)
     alpha = poly_mask(out_line)
-    if kind == "hoodie" and not back:
-        hood = poly_mask(bezier((300, 150), (292, 6), (500, 2), 24) + bezier((500, 2), (708, 6), (700, 150), 24) + [(560, 200), (440, 200)])
-        alpha = np.maximum(alpha, hood)
     rgb = np.ones((H, W, 3), np.float32) * base
 
     def over(color_rgb, a):
@@ -267,12 +281,11 @@ def compose(kind, color, prints_front, seed, back=False, back_print=None, piping
 
     # seams, rib and stitching (slightly darker than the fabric)
     dark = 0.80 if lum(base * 255) > 80 else 0.70
-    hi = 1.0 if lum(base * 255) > 80 else 1.25
     seams = []
     stitches = []
     if kind == "tee":
-        seams += [bezier((212, 92), (236, 210), (244, 330)), bezier((788, 92), (764, 210), (756, 330))]
-        stitches += [[(92, 310), (186, 372)], [(908, 310), (814, 372)], [(240, 1052), (500, 1058), (760, 1052)]]
+        seams += [bezier((212, 126), (236, 240), (218, 357)), bezier((788, 126), (764, 240), (782, 357))]
+        stitches += [[(77, 328), (160, 398)], [(923, 328), (840, 398)], bezier((203, 1050), (350, 1080), (500, 1060)), bezier((500, 1060), (650, 1080), (797, 1050))]
     elif kind == "longsleeve":
         seams += [bezier((214, 94), (240, 220), (252, 336)), bezier((786, 94), (760, 220), (748, 336))]
         stitches += [[(108, 990), (188, 996)], [(892, 990), (812, 996)], [(246, 1086), (500, 1092), (754, 1086)]]
@@ -294,11 +307,11 @@ def compose(kind, color, prints_front, seed, back=False, back_print=None, piping
     # collar
     if not back:
         hole = poly_mask(neck_hole(kind), 0.8)
-        depth = {"tee": 122, "longsleeve": 118, "crewneck": 108, "hoodie": 108}[kind]
+        depth = {"tee": 162, "longsleeve": 154, "crewneck": 146, "hoodie": 154}[kind]
         rib_w = 16 if kind == "tee" else 24
-        collar = stroke_mask([bezier(NECK_L, (500, depth + 18), NECK_R, 40)], rib_w, 1.0)
+        collar = stroke_mask([neckline(kind)], rib_w, 1.0)
         rgb *= (1 - collar[..., None] * (1 - (dark + 0.1)))
-        edge = stroke_mask([bezier(NECK_L, (500, depth + 18 + rib_w), NECK_R, 40)], 2.0, 0.8)
+        edge = stroke_mask([bezier(NECK_L, (500, depth + rib_w), NECK_R, 40)], 2.0, 0.8)
         rgb *= (1 - edge[..., None] * (1 - dark))
         if kind == "hoodie":
             # hood: lining visible inside the opening + drawstrings
@@ -320,7 +333,7 @@ def compose(kind, color, prints_front, seed, back=False, back_print=None, piping
         alpha = alpha * (1 - hole)
     else:
         # back: collar rib along a shallow back neck
-        collar = stroke_mask([bezier(NECK_L, (500, 70), NECK_R, 40)], 14, 1.0)
+        collar = stroke_mask([neckline(kind)], 14, 1.0)
         rgb *= (1 - collar[..., None] * (1 - (dark + 0.1)))
 
     # fabric grain
@@ -407,6 +420,12 @@ PRODUCTS = [
 def main():
     global LOGO, LIB, NAI, EAGLE
     os.makedirs(OUT, exist_ok=True)
+    # Geometry and alpha silhouettes share the same contours, including collars.
+    shapes = {kind: [[round(x, 4), round(y, 4)] for x, y in outline(kind)]
+              for kind in ("tee", "longsleeve", "crewneck", "hoodie")}
+    with open(os.path.join(ROOT, "lib", "garment-shapes.json"), "w") as f:
+        json.dump(shapes, f, separators=(",", ":"))
+        f.write("\n")
     LOGO = print_logo()
     LIB = print_liberty()
     NAI = print_nai()

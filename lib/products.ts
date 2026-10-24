@@ -1,4 +1,5 @@
 import { MOTION, DEG_TO_RAD } from "./motion";
+import GARMENT_SHAPES from "./garment-shapes.json";
 
 export type GarmentKind = "tee" | "longsleeve" | "crewneck" | "hoodie";
 export const PRODUCT_SIZES = ["S", "M", "L", "XL"] as const;
@@ -41,10 +42,10 @@ export const BRAND = {
 
 /** Where the hem sits inside each 1000×1200 texture (fraction of height). */
 export const HEM_FRAC: Record<GarmentKind, number> = {
-  tee: 1080 / 1200,
-  longsleeve: 1112 / 1200,
-  crewneck: 1166 / 1200,
-  hoodie: 1166 / 1200,
+  tee: Math.max(...GARMENT_SHAPES.tee.map((p) => p[1])) / 1200,
+  longsleeve: Math.max(...GARMENT_SHAPES.longsleeve.map((p) => p[1])) / 1200,
+  crewneck: Math.max(...GARMENT_SHAPES.crewneck.map((p) => p[1])) / 1200,
+  hoodie: Math.max(...GARMENT_SHAPES.hoodie.map((p) => p[1])) / 1200,
 };
 
 type ProductDesign = { title: string; description: string };

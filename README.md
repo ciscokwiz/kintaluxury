@@ -12,6 +12,7 @@ npm ci
 npm run dev
 npm run lint
 npm run typecheck
+npm run test:rack
 npm run build
 npm start
 ```
@@ -34,10 +35,16 @@ The ticker stays visible. Keyboard users can Tab through the garments, press
 Enter to open, use arrow keys to navigate, and Escape to close. Reduced-motion
 preferences are respected.
 
-The garments are transparent front/back WebP textures on curved, subdivided
-panels, with folds and pointer-driven cloth motion. They are mockups rather
-than full volumetric clothing scans. Soft wall shadows add depth. Original
-brand photos are available in the product gallery for the first four colorways.
+The longer silhouettes use transparent front/back WebP textures on curved,
+subdivided surfaces with chest and sleeve volume. Sewn edges join the faces
+around each design's silhouette and neckline; the generator exports their shared
+contours to `lib/garment-shapes.json`. Exposed wooden hanger necks, soft wall
+shadows, and chrome wall plates ground the rack. Hover turns the garment without
+lifting or enlarging it, and the hook stays seated while its neighbors slide
+and settle. Fabric motion follows turning and sliding; pointer dents, ripples,
+and continuous billowing are off by default. These are shaped mockups, not
+scans. Original brand photos remain in the product gallery for the first four
+colorways.
 
 ## Products and bag
 
@@ -95,3 +102,5 @@ npm run garments
 The garment generator extracts brand artwork from `scripts/photos/` and
 recreates `public/garments/`. This rewrites tracked mockups. The original photos
 and this procedural generator remain available for future asset work.
+It also regenerates `lib/garment-shapes.json`, which keeps the sewn geometry,
+necklines, and product framing aligned with those mockups.

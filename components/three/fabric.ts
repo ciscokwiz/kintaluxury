@@ -187,7 +187,10 @@ const tmpDrag = new THREE.Vector2();
 
 /** Ease the state toward the targets, write the uniforms. Returns true while still moving. */
 export function stepFabric(s: FabricState, u: FabricUniforms, t: FabricTargets, dt: number, garmentW: number): boolean {
-  if (t.cursor && t.press > 0) {
+  const enabled = FABRIC.enabled && fabricGlobals.uEnabled.value > 0;
+  const pressTarget = enabled && (FABRIC.press || FABRIC.ripple || FABRIC.drag || FABRIC.leanDeg) ? t.press : 0;
+  const hoverTarget = enabled && FABRIC.breathe ? t.hover : 0;
+  if (t.cursor && pressTarget > 0) {
     if (!s.hasCursor) {
       s.cursor.copy(t.cursor);
       s.lastCursor.copy(t.cursor);
@@ -205,11 +208,11 @@ export function stepFabric(s: FabricState, u: FabricUniforms, t: FabricTargets, 
   }
   s.drag.x = damp(s.drag.x, tmpDrag.x, 6, dt);
   s.drag.y = damp(s.drag.y, tmpDrag.y, 6, dt);
-  s.press = damp(s.press, t.press, t.press > s.press ? 10 : 4, dt);
-  s.hover = damp(s.hover, t.hover, t.hover > s.hover ? 4 : 2.2, dt);
-  const waveT = Math.max(-1, Math.min(1, t.yawVelocity / 6));
+  s.press = damp(s.press, pressTarget, pressTarget > s.press ? 10 : 4, dt);
+  s.hover = damp(s.hover, hoverTarget, hoverTarget > s.hover ? 4 : 2.2, dt);
+  const waveT = enabled && FABRIC.wave ? Math.max(-1, Math.min(1, t.yawVelocity / 6)) : 0;
   s.wave = damp(s.wave, Math.abs(waveT), Math.abs(waveT) > s.wave ? 14 : 2.5, dt);
-  s.sway = damp(s.sway, Math.max(-1, Math.min(1, t.slideVelocity / 4)), 5, dt);
+  s.sway = damp(s.sway, enabled && FABRIC.sway ? Math.max(-1, Math.min(1, t.slideVelocity / 4)) : 0, 5, dt);
 
   u.uCursor.value.copy(s.cursor);
   u.uDrag.value.copy(s.drag);
@@ -220,8 +223,8 @@ export function stepFabric(s: FabricState, u: FabricUniforms, t: FabricTargets, 
 
   const eps = 1e-3;
   return (
-    Math.abs(s.press - t.press) > eps ||
-    Math.abs(s.hover - t.hover) > eps ||
+    Math.abs(s.press - pressTarget) > eps ||
+    Math.abs(s.hover - hoverTarget) > eps ||
     s.wave > eps ||
     Math.abs(s.sway) > eps ||
     s.drag.lengthSq() > eps * eps ||

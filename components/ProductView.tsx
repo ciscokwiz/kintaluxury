@@ -6,7 +6,7 @@ import { PRODUCTS, getProductVariants } from "@/lib/products";
 import { MOTION } from "@/lib/motion";
 import { detail, sim, useStore } from "@/lib/store";
 import { computeMetrics } from "./three/useRackLayout";
-import { facingOf, renderYaw } from "./three/physics";
+import { renderYaw } from "./three/physics";
 import DetailStage from "./three/DetailStage";
 import SeeAvailability from "./SeeAvailability";
 import styles from "./ProductView.module.css";
@@ -59,8 +59,7 @@ export default function ProductView() {
       fade.current?.kill();
       const m = computeMetrics(window.innerWidth, window.innerHeight);
       const g = sim.garments[i];
-      const f = facingOf(g.yaw, PRODUCTS[i].restYaw);
-      detail.from = { x: g.x + sim.scroll, y: m.railY + m.hoverLift * f, yaw: renderYaw(g.yaw, PRODUCTS[i].restYaw, g.x + sim.scroll), roll: g.roll, scale: 1 + (MOTION.hoverScale - 1) * f };
+      detail.from = { x: g.x + sim.scroll, y: m.railY, yaw: renderYaw(g.yaw, PRODUCTS[i].restYaw, g.x + sim.scroll), roll: g.roll, scale: 1 };
       detail.p = 0;
       detail.opacity = 1;
       detail.spin = detail.spinV = detail.spinTarget = 0;

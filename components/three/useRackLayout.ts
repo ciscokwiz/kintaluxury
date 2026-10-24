@@ -16,7 +16,7 @@ export const FOV = 24;
 export const CAM_Z = WORLD_H / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
 
 /** texture layout (px in the 1000 × 1200 garment textures) */
-export const TEX = { w: 1000, h: 1200, hangerTop: 62, hangerTipX: 285, hangerTipTop: 148, hangerThick: 24 };
+export const TEX = { w: 1000, h: 1200, hangerTop: -18, hangerTipX: 285, hangerTipTop: 150, hangerThick: 34 };
 
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 
@@ -67,7 +67,6 @@ export interface RackMetrics {
   scrollable: boolean;
   scrollMax: number;
 
-  hoverLift: number;
   /** product view: pivot y and scale of the detail garment */
   detailPivotY: number;
   detailScale: number;
@@ -85,22 +84,23 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const lh = (vh: number) => (vh / 100) * WORLD_H;
 
   const railY = y(26.8);
-  const railRadius = lh(0.45);
-  const hookTube = railRadius * 0.32;
-  const hookR = railRadius * 1.9;
-  const hookCy = hookR - railRadius - hookTube;
+  const railRadius = lh(0.52);
+  const hookTube = railRadius * 0.2;
+  const hookR = railRadius + hookTube * 1.25;
+  // The inner top of the hook rests on the top of the rail.
+  const hookCy = railRadius - hookR + hookTube;
   const hookTop = hookCy + hookR + hookTube;
-  const hangerTop = -lh(4.8);
+  const hangerTop = -lh(2.3);
 
-  // A wider, shorter silhouette gives the mockups a natural boxy fit.
-  const garmentH = lh(bp === "mobile" ? 32 : 34);
+  // Longer hanging silhouettes, with the wooden neck exposed above the collar.
+  const garmentH = lh(bp === "mobile" ? 42 : 44);
   const texel = garmentH / TEX.h;
-  const garmentW = TEX.w * texel * 1.26;
+  const garmentW = TEX.w * texel * 1.06;
   const garmentCy = hangerTop + TEX.hangerTop * texel - garmentH / 2;
   const frontWidth = garmentW * 0.88;
 
   const pitch = Math.max(lw(MOTION.restPitchVw), frontWidth * 0.272);
-  // the brief's w_front (15 vw) assumes narrower garments; never part less than the garment is wide
+  // Leave enough room for the full sleeve width when a garment faces forward.
   const wFront = Math.max(lw(MOTION.wFrontVw[bp]), frontWidth * 1.12);
   const gap = lw(MOTION.minGapVw);
   const bunch = Math.max(lw(MOTION.bunchPitchVw), pitch * 0.34);
@@ -122,13 +122,13 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const restX = PRODUCTS.map((_, i) => centre - rowSpan / 2 + i * pitch);
 
   const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - HEM_FRAC[p.kind] * garmentH);
-  const teeHem = garmentCy + garmentH / 2 - HEM_FRAC.tee * garmentH;
+  const lowestHem = Math.min(...hemY);
   const detailScale = Math.min(
-    lh(71 - 16) / (hookTop - teeHem),
+    lh(71 - 16) / (hookTop - lowestHem),
     (worldW * (bp === "mobile" ? 0.86 : 0.62)) / garmentW,
   );
   // Keep the whole silhouette inside portrait screens, centered above controls.
-  const detailPivotY = y((16 + 71) / 2) - ((hookTop + teeHem) / 2) * detailScale;
+  const detailPivotY = y((16 + 71) / 2) - ((hookTop + lowestHem) / 2) * detailScale;
 
   return {
     widthPx,
@@ -153,8 +153,8 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     garmentW,
     garmentH,
     garmentCy,
-    layer: 8 * texel,
-    drapeK: 0.24 / garmentW,
+    layer: 10 * texel,
+    drapeK: 0.13 / garmentW,
     pitch,
     wFront,
     gap,
@@ -162,7 +162,6 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     restX,
     scrollable,
     scrollMax,
-    hoverLift: lh(MOTION.hoverLiftVh),
     detailPivotY,
     detailScale,
     hemY,
@@ -200,59 +199,36 @@ export function layoutRack(m: RackMetrics, facing: number[], anchor: number | nu
   const lo = m.railLeft + margin;
   const hi = m.railRight - margin;
 
-  // how much each spacing may shrink when the row hits a rail end:
-  // spacings next to a turned garment are rigid, outer ones bunch first
-  const capacity = (i: number) => Math.max(0, s[i] - m.bunch) * (1 - Math.max(facing[i - 1], facing[i]));
-
-  const compress = (from: number, to: number, step: 1 | -1, over: number) => {
-    if (over <= 0) return 0;
-    let total = 0;
-    const weights: number[] = [];
-    for (let i = from, d = 1; step > 0 ? i <= to : i >= to; i += step, d++) {
-      const k = step > 0 ? i : i + 1;
-      const wgt = capacity(k) * d;
-      weights.push(wgt);
-      total += wgt;
+  const available = hi - lo;
+  let excess = s.reduce((total, spacing) => total + spacing, 0) - available;
+  // Redistribute unused compression after a gap reaches its limit. One pass can
+  // otherwise leave an end outside the rail and collapse hooks when clamped.
+  for (let pass = 0; pass < n && excess > 1e-6; pass++) {
+    const capacities = s.map((spacing, i) => i === 0 ? 0
+      : Math.max(0, spacing - m.bunch) * (1 - Math.min(1, Math.max(facing[i - 1], facing[i]))));
+    const weights = capacities.map((capacity, i) => capacity * (1 + Math.abs(i - 0.5 - anchor)));
+    const total = weights.reduce((sum, weight) => sum + weight, 0);
+    if (total < 1e-8) break;
+    const requested = excess;
+    for (let i = 1; i < n; i++) {
+      const take = Math.min(capacities[i], requested * weights[i] / total);
+      s[i] -= take;
+      excess -= take;
     }
-    if (total <= 0) return over;
-    let remaining = over;
-    let j = 0;
-    for (let i = from; step > 0 ? i <= to : i >= to; i += step, j++) {
-      const k = step > 0 ? i : i + 1;
-      const take = Math.min(capacity(k), (over * weights[j]) / total);
-      s[k] -= take;
-      remaining -= take;
-    }
-    return Math.max(0, remaining);
-  };
+  }
+  // During a fast sweep several garments can be open at once. Preserve hook
+  // order even when that transient combination cannot fit at its full width.
+  if (excess > 1e-6) {
+    const span = s.reduce((sum, spacing) => sum + spacing, 0);
+    for (let i = 1; i < n; i++) s[i] *= available / span;
+  }
 
-  let ax = m.restX[anchor];
-  const place = () => {
-    out[anchor] = ax;
-    for (let i = anchor + 1; i < n; i++) out[i] = out[i - 1] + s[i];
-    for (let i = anchor - 1; i >= 0; i--) out[i] = out[i + 1] - s[i + 1];
-  };
-  place();
-  // right end
-  let over = out[n - 1] - hi;
-  if (over > 0 && anchor < n - 1) {
-    const left = compress(anchor + 1, n - 1, 1, over);
-    ax -= left;
-    place();
-  } else if (over > 0) {
-    ax -= over;
-    place();
-  }
-  // left end
-  over = lo - out[0];
-  if (over > 0 && anchor > 0) {
-    const left = compress(anchor - 1, 0, -1, over);
-    ax += left;
-    place();
-  } else if (over > 0) {
-    ax += over;
-    place();
-  }
-  for (let i = 0; i < n; i++) out[i] = Math.min(hi, Math.max(lo, out[i]));
+  let leftSpan = 0;
+  let rightSpan = 0;
+  for (let i = 1; i <= anchor; i++) leftSpan += s[i];
+  for (let i = anchor + 1; i < n; i++) rightSpan += s[i];
+  out[anchor] = Math.max(lo + leftSpan, Math.min(hi - rightSpan, m.restX[anchor]));
+  for (let i = anchor + 1; i < n; i++) out[i] = out[i - 1] + s[i];
+  for (let i = anchor - 1; i >= 0; i--) out[i] = out[i + 1] - s[i + 1];
   return out;
 }

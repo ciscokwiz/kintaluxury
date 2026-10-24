@@ -9,7 +9,7 @@ import { MOTION, FABRIC, DEG_TO_RAD } from "@/lib/motion";
 import { sim, useStore } from "@/lib/store";
 import { CAM_Z, FOV, layoutRack, useRackMetrics, type RackMetrics } from "./useRackLayout";
 import { Rail } from "./Rail";
-import { Garment, createFabricMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
+import { Garment, createFabricMaterial, createSeamMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
 import { createChromeMaterial, createWoodMaterial } from "./Hanger";
 import { StudioLights } from "./StudioLights";
 import { springStep, damp, facingOf, renderYaw } from "./physics";
@@ -72,17 +72,24 @@ function Rack() {
   const textures = useTexture(TEXTURE_URLS);
   useMemo(() => configureTextures(textures, Math.min(8, gl.capabilities.getMaxAnisotropy())), [textures, gl]);
 
-  const geo = useMemo(() => createGarmentGeometries(m), [m]);
-  useEffect(() => () => disposeGarmentGeometries(geo), [geo]);
+  const geometries = useMemo(() => ({
+    tee: createGarmentGeometries(m, "tee"),
+    longsleeve: createGarmentGeometries(m, "longsleeve"),
+    crewneck: createGarmentGeometries(m, "crewneck"),
+    hoodie: createGarmentGeometries(m, "hoodie"),
+  }), [m]);
+  useEffect(() => () => Object.values(geometries).forEach(disposeGarmentGeometries), [geometries]);
 
   const shared = useMemo(() => ({ chrome: createChromeMaterial(), wood: createWoodMaterial() }), []);
+  useEffect(() => () => Object.values(shared).forEach((material) => material.dispose()), [shared]);
   // cloth: one uniform set per garment (front + back panel share it) and its eased state
   const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
   const clothState = useMemo(() => PRODUCTS.map(() => createFabricState()), []);
   useEffect(() => cloth.forEach((u) => setFabricFrame(u, m)), [cloth, m]);
   const mats = useMemo(
     () =>
-      PRODUCTS.map((_, i) => ({
+      PRODUCTS.map((product, i) => ({
+        edge: createSeamMaterial(product.colorHex, false, cloth[i]),
         front: createFabricMaterial(textures[i * 2], "front", false, cloth[i]),
         back: createFabricMaterial(textures[i * 2 + 1], "back", false, cloth[i]),
         wood: shared.wood,
@@ -91,9 +98,14 @@ function Rack() {
     [textures, shared, cloth],
   );
 
+  useEffect(() => () => mats.forEach(({ front, back, edge }) => {
+    front.dispose();
+    back.dispose();
+    edge.dispose();
+  }), [mats]);
+
   const roots = useRef<(THREE.Group | null)[]>([]);
   const yaws = useRef<(THREE.Group | null)[]>([]);
-  const railRef = useRef<THREE.Group>(null);
   const targets = useRef<number[]>(new Array(COUNT).fill(0));
   const facing = useRef<number[]>(new Array(COUNT).fill(0));
   const label = useRef({ x: 0, y: 0, shown: false });
@@ -302,15 +314,19 @@ function Rack() {
       const root = roots.current[i];
       const yawG = yaws.current[i];
       if (!root || !yawG) continue;
-      const f = facing.current[i];
-      root.position.set(g.x + sim.scroll, m.railY, 0);
+      // Rotate about the contact at the top of the tube, keeping the hook seated.
+      root.position.set(
+        g.x + sim.scroll + m.railRadius * Math.sin(g.roll),
+        m.railY + m.railRadius * (1 - Math.cos(g.roll)),
+        0,
+      );
       root.rotation.z = g.roll;
       root.visible = i !== sim.hidden;
       yawG.rotation.y = renderYaw(g.yaw, PRODUCTS[i].restYaw, g.x + sim.scroll);
-      yawG.scale.setScalar(1 + (MOTION.hoverScale - 1) * f);
-      yawG.position.y = m.hoverLift * f;
+      yawG.scale.setScalar(1);
+      yawG.position.y = 0;
     }
-    if (railRef.current) railRef.current.position.x = sim.scroll;
+    // The rail stays fixed while garments slide across it on narrow screens.
 
     // cloth: press / drag under the pointer, breathing on hover, rustle for neighbours
     syncFabricGlobals(reduced);
@@ -377,11 +393,11 @@ function Rack() {
 
   return (
     <>
-      <Rail m={m} material={shared.chrome} groupRef={railRef} />
+      <Rail m={m} material={shared.chrome} />
       {PRODUCTS.map((p, i) => (
         <Garment
           key={p.id}
-          geo={geo}
+          geo={geometries[p.kind]}
           mats={mats[i]}
           rootRef={(g) => {
             roots.current[i] = g;

@@ -103,7 +103,7 @@ export const sim = {
   forceFront: null as number | null,
   /** set by the close sequence: snap the rack into the parted layout around this index */
   snapParted: null as number | null,
-  /** horizontal scroll of the rail on narrow screens (world units) */
+  /** horizontal scroll of the garments along the fixed rail (world units) */
   scroll: 0,
   scrollV: 0,
   dragging: false,
