@@ -4,8 +4,8 @@
 const DEG = Math.PI / 180;
 
 export const MOTION = {
-  /** dt clamp for every frame-loop integrator (s) */
-  maxDelta: 1 / 30,
+  /** Limit tab-resume jumps without slowing time on devices below 30 fps. */
+  maxDelta: 1 / 4,
   /** fixed sub-step used to integrate the springs (s) */
   subStep: 1 / 240,
 
@@ -57,32 +57,13 @@ export const MOTION = {
 
 export const DEG_TO_RAD = DEG;
 
-/**
- * Cloth micro-motion (components/three/fabric.ts). Amplitudes are fractions
- * of the garment's width. Mutable so the tuning panel can change them live.
- */
+/** Model morph gains, mutable for the optional motion tuning panel. */
 export const FABRIC_DEFAULTS = {
   enabled: true,
-  /** depth of the dent under the pointer */
-  press: 0,
-  /** height of the ring spreading from the pointer */
-  ripple: 0,
-  /** size of the pressed area */
-  radius: 0.16,
-  /** billowing while hovered */
-  breathe: 0,
-  /** twist travelling down the garment while it swivels */
+  /** 0.008 gives the reviewed turn lag at full strength. */
   wave: 0.008,
-  /** hem trailing the hanger as it slides */
+  /** 0.012 gives the reviewed slide lag at full strength. */
   sway: 0.012,
-  /** cloth pulled along by a moving pointer */
-  drag: 0,
-  /** hovered garment leans toward the pointer (deg of yaw at the edge) */
-  leanDeg: 0,
-  /** how much neighbours rustle as the pointer passes (0–1) */
-  rustle: 0,
-  /** how fast the pressed spot follows the pointer */
-  cursorLambda: 9,
 };
 
 export type FabricConfig = typeof FABRIC_DEFAULTS;

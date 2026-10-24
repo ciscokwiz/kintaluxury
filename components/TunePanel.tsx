@@ -8,18 +8,11 @@ import styles from "./TunePanel.module.css";
 type NumKey = { [K in keyof FabricConfig]: FabricConfig[K] extends number ? K : never }[keyof FabricConfig];
 
 const SLIDERS: { key: NumKey; label: string; min: number; max: number; step: number }[] = [
-  { key: "press", label: "Pointer dent", min: 0, max: 0.08, step: 0.001 },
-  { key: "radius", label: "Dent size", min: 0.06, max: 0.35, step: 0.005 },
-  { key: "ripple", label: "Ripple", min: 0, max: 0.015, step: 0.0005 },
-  { key: "drag", label: "Drag with pointer", min: 0, max: 0.06, step: 0.001 },
-  { key: "breathe", label: "Breathing on hover", min: 0, max: 0.04, step: 0.001 },
-  { key: "wave", label: "Swivel twist", min: 0, max: 0.15, step: 0.002 },
-  { key: "sway", label: "Hem trailing", min: 0, max: 0.12, step: 0.002 },
-  { key: "leanDeg", label: "Lean from hand (°)", min: 0, max: 15, step: 0.5 },
-  { key: "rustle", label: "Neighbour rustle", min: 0, max: 1, step: 0.01 },
+  { key: "wave", label: "Turn trailing", min: 0, max: 0.024, step: 0.001 },
+  { key: "sway", label: "Slide trailing", min: 0, max: 0.036, step: 0.001 },
 ];
 
-const STORE_KEY = "kinta-fabric-v2";
+const STORE_KEY = "kinta-model-motion-v1";
 
 function wake() {
   sim.wakeRack();
@@ -85,7 +78,7 @@ export default function TunePanel() {
       </button>
       {open && (
         <div className={styles.body}>
-          <p className={styles.hint}>Hover a garment and move slowly across it. Click one to test the product view.</p>
+          <p className={styles.hint}>Turn a garment or slide the rack to test trailing. The cloth settles when movement stops.</p>
           <label className={styles.check} htmlFor="tune-enabled">
             <input id="tune-enabled" type="checkbox" checked={values.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
             Cloth motion on

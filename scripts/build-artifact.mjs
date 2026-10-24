@@ -9,10 +9,10 @@ const out = join(root, "artifact", "dist");
 mkdirSync(out, { recursive: true });
 
 const assets = {};
-for (const folder of ["garments", "product-photos"]) {
+for (const folder of ["garments", "product-photos", "models/kinta", "models/kinta/textures"]) {
   for (const name of readdirSync(join(root, "public", folder))) {
-    if (!/\.(?:webp|png)$/i.test(name)) continue;
-    const type = name.endsWith(".webp") ? "image/webp" : "image/png";
+    if (!/\.(?:webp|png|glb)$/i.test(name)) continue;
+    const type = name.endsWith(".glb") ? "model/gltf-binary" : name.endsWith(".webp") ? "image/webp" : "image/png";
     assets[`${folder}/${name}`] = `data:${type};base64,${readFileSync(join(root, "public", folder, name)).toString("base64")}`;
   }
 }
@@ -67,4 +67,4 @@ const html = `<!doctype html>
 </html>
 `;
 for (const name of ["index.html", "kinta-website.html"]) writeFileSync(join(out, name), html);
-console.log(`Built artifact/dist/kinta-website.html: ${(Buffer.byteLength(html) / 1024 / 1024).toFixed(2)} MB, ${Object.keys(assets).length} embedded images; no server required.`);
+console.log(`Built artifact/dist/kinta-website.html: ${(Buffer.byteLength(html) / 1024 / 1024).toFixed(2)} MB, ${Object.keys(assets).length} embedded assets; no server required.`);

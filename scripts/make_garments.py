@@ -400,20 +400,20 @@ def eagle_print(rgb_, over):
     over(full(r, x0, y0), full(ra, x0, y0))
 
 
-BONE = (238, 235, 229)
-BLACK = (26, 26, 28)
+BONE = (240, 239, 235)
+BLACK = (21, 22, 23)
 PRODUCTS = [
     # id, kind, colour, front prints, back print, piping
     ("01", "tee", BONE, [logo_print((22, 22, 24))], liberty_print, None),
     ("02", "tee", BLACK, [nai_print], None, None),
-    ("03", "tee", (21, 150, 222), [eagle_print], None, None),
-    ("04", "hoodie", (167, 199, 229), [logo_print((20, 22, 30), top=228, width=120)], None, (40, 52, 92)),
-    ("05", "crewneck", (34, 60, 46), [logo_print((236, 233, 226), top=220, width=260)], None, None),
-    ("06", "longsleeve", BLACK, [nai_print], None, None),
-    ("07", "tee", (204, 188, 160), [logo_print((26, 24, 22))], None, None),
-    ("08", "tee", (30, 30, 33), [eagle_print], None, None),
-    ("09", "hoodie", (40, 48, 82), [logo_print((238, 236, 230), top=228, width=120)], None, (167, 199, 229)),
-    ("10", "tee", (82, 88, 98), [logo_print((236, 233, 226))], None, None),
+    ("03", "tee", (0, 162, 220), [eagle_print], None, None),
+    ("04", "hoodie", (169, 199, 218), [logo_print((20, 22, 30), top=228, width=120)], None, None),
+    ("05", "tee", (18, 52, 36), [logo_print((238, 238, 222), top=220, width=260)], None, None),
+    ("08", "tee", (22, 23, 25), [eagle_print], None, None),
+    ("07", "tee", (222, 209, 169), [logo_print((23, 23, 25))], None, None),
+    ("11", "hoodie", (208, 161, 130), [logo_print((20, 22, 30), top=228, width=120)], None, None),
+    ("09", "hoodie", (34, 46, 83), [logo_print((230, 233, 231), top=228, width=120)], None, None),
+    ("10", "tee", (82, 94, 106), [logo_print((236, 238, 232))], None, None),
 ]
 
 

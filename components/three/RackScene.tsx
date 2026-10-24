@@ -3,36 +3,16 @@
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import { PRODUCTS, COUNT } from "@/lib/products";
-import { MOTION, FABRIC, DEG_TO_RAD } from "@/lib/motion";
+import { MOTION } from "@/lib/motion";
 import { sim, useStore } from "@/lib/store";
 import { CAM_Z, FOV, layoutRack, useRackMetrics, type RackMetrics } from "./useRackLayout";
 import { Rail } from "./Rail";
-import { Garment, createFabricMaterial, createSeamMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
-import { createChromeMaterial, createWoodMaterial } from "./Hanger";
+import { Garment } from "./GarmentModel";
+import { createChromeMaterial } from "./Hanger";
 import { StudioLights } from "./StudioLights";
 import { springStep, damp, facingOf, renderYaw } from "./physics";
-import {
-  createFabricState,
-  createFabricUniforms,
-  fabricGlobals,
-  pointerOnGarment,
-  setFabricFrame,
-  stepFabric,
-  syncFabricGlobals,
-} from "./fabric";
 import styles from "./RackScene.module.css";
-
-export const TEXTURE_URLS = PRODUCTS.flatMap((p) => [p.front, p.back ?? p.front]);
-
-export function configureTextures(textures: THREE.Texture[], anisotropy: number) {
-  for (const t of textures) {
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = anisotropy;
-    t.needsUpdate = true;
-  }
-}
 
 /* ---------------------------------------------------------------------- */
 
@@ -69,40 +49,8 @@ function Rack() {
   const invalidate = useThree((s) => s.invalidate);
   const setReady = useStore((s) => s.setReady);
 
-  const textures = useTexture(TEXTURE_URLS);
-  useMemo(() => configureTextures(textures, Math.min(8, gl.capabilities.getMaxAnisotropy())), [textures, gl]);
-
-  const geometries = useMemo(() => ({
-    tee: createGarmentGeometries(m, "tee"),
-    longsleeve: createGarmentGeometries(m, "longsleeve"),
-    crewneck: createGarmentGeometries(m, "crewneck"),
-    hoodie: createGarmentGeometries(m, "hoodie"),
-  }), [m]);
-  useEffect(() => () => Object.values(geometries).forEach(disposeGarmentGeometries), [geometries]);
-
-  const shared = useMemo(() => ({ chrome: createChromeMaterial(), wood: createWoodMaterial() }), []);
+  const shared = useMemo(() => ({ chrome: createChromeMaterial() }), []);
   useEffect(() => () => Object.values(shared).forEach((material) => material.dispose()), [shared]);
-  // cloth: one uniform set per garment (front + back panel share it) and its eased state
-  const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
-  const clothState = useMemo(() => PRODUCTS.map(() => createFabricState()), []);
-  useEffect(() => cloth.forEach((u) => setFabricFrame(u, m)), [cloth, m]);
-  const mats = useMemo(
-    () =>
-      PRODUCTS.map((product, i) => ({
-        edge: createSeamMaterial(product.colorHex, false, cloth[i]),
-        front: createFabricMaterial(textures[i * 2], "front", false, cloth[i]),
-        back: createFabricMaterial(textures[i * 2 + 1], "back", false, cloth[i]),
-        wood: shared.wood,
-        chrome: shared.chrome,
-      })),
-    [textures, shared, cloth],
-  );
-
-  useEffect(() => () => mats.forEach(({ front, back, edge }) => {
-    front.dispose();
-    back.dispose();
-    edge.dispose();
-  }), [mats]);
 
   const roots = useRef<(THREE.Group | null)[]>([]);
   const yaws = useRef<(THREE.Group | null)[]>([]);
@@ -110,7 +58,6 @@ function Rack() {
   const facing = useRef<number[]>(new Array(COUNT).fill(0));
   const label = useRef({ x: 0, y: 0, shown: false });
   const tmp = useMemo(() => new THREE.Vector3(), []);
-  const local = useMemo(() => new THREE.Vector2(), []);
   const el = gl.domElement;
 
   // first paint: everything at rest
@@ -266,13 +213,7 @@ function Rack() {
     for (let i = 0; i < COUNT; i++) {
       const g = sim.garments[i];
       const rest = PRODUCTS[i].restYaw;
-      // the hovered garment leans away from the hand pressing it (micro-motion)
-      const cs = clothState[i];
-      const lean =
-        i === hovered && !reduced && FABRIC.enabled
-          ? Math.max(-1, Math.min(1, cs.cursor.x / (m.garmentW * 0.45))) * FABRIC.leanDeg * DEG_TO_RAD * cs.press
-          : 0;
-      const target = i === front ? lean : rest;
+      const target = i === front ? 0 : rest;
       if (reduced) {
         const step = (rest / (MOTION.reducedSwivelMs / 1000)) * dt;
         g.yaw += Math.max(-step, Math.min(step, target - g.yaw));
@@ -328,39 +269,11 @@ function Rack() {
     }
     // The rail stays fixed while garments slide across it on narrow screens.
 
-    // cloth: press / drag under the pointer, breathing on hover, rustle for neighbours
-    syncFabricGlobals(reduced);
-    fabricGlobals.uTime.value += dt;
-    const mouse = sim.pointer.type === "mouse" && sim.pointer.overCanvas && !sim.dragging && st.mode === "rack";
-    const pwx = (sim.pointer.x / m.widthPx - 0.5) * m.worldW - sim.scroll;
-    const pwy = (0.5 - sim.pointer.y / m.heightPx) * 10;
-    const inBand = pwy < m.railY + m.hookTop && pwy > m.railY + Math.min(...m.hemY);
-    for (let i = 0; i < COUNT; i++) {
-      const g = sim.garments[i];
-      const yawG = yaws.current[i];
-      let press = 0;
-      let cursor: THREE.Vector2 | null = null;
-      if (i === hovered && mouse && yawG && roots.current[i]) {
-        roots.current[i]!.updateMatrixWorld(true);
-        if (pointerOnGarment(camera, sim.pointer.x, sim.pointer.y, m.widthPx, m.heightPx, yawG, m, local)) {
-          press = 1;
-          cursor = local;
-        }
-      }
-      let hover = i === hovered ? 1 : 0;
-      if (i !== hovered && mouse && inBand) {
-        const d = (pwx - g.x) / (m.pitch * 1.3);
-        hover = FABRIC.rustle * Math.exp(-d * d);
-      }
-      const active = stepFabric(clothState[i], cloth[i], { press, cursor, hover, yawVelocity: g.vyaw, slideVelocity: g.vx }, dt, m.garmentW);
-      if (active) moving = true;
-    }
-
     // hover label follows the hem of the hovered garment
     const lab = sim.labelEl;
     if (lab && hovered !== null && roots.current[hovered] && yaws.current[hovered]) {
       roots.current[hovered]!.updateMatrixWorld(true);
-      tmp.set(0, m.hemY[hovered], m.layer).applyMatrix4(yaws.current[hovered]!.matrixWorld).project(camera);
+      tmp.set(0, m.hemY[hovered], 0).applyMatrix4(yaws.current[hovered]!.matrixWorld).project(camera);
       const tx = (tmp.x * 0.5 + 0.5) * m.widthPx;
       const ty = (-tmp.y * 0.5 + 0.5) * m.heightPx + m.heightPx * 0.03;
       const L = label.current;
@@ -387,8 +300,8 @@ function Rack() {
     camera.position.y = damp(camera.position.y, py, MOTION.parallax.lambda, dt);
     if (Math.abs(camera.position.x - px) > 1e-4 || Math.abs(camera.position.y - py) > 1e-4) moving = true;
 
-    // keep the loop alive only while something moves or the pointer is on the rack
-    if (moving || sim.pointer.overCanvas || sim.dragging) invalidate();
+    // Individual garment morphs wake the loop until their movement has settled.
+    if (moving || sim.dragging) invalidate();
   });
 
   return (
@@ -397,8 +310,8 @@ function Rack() {
       {PRODUCTS.map((p, i) => (
         <Garment
           key={p.id}
-          geo={geometries[p.kind]}
-          mats={mats[i]}
+          product={p}
+          m={m}
           rootRef={(g) => {
             roots.current[i] = g;
           }}
@@ -481,7 +394,7 @@ export default function RackScene() {
   useInputModality();
   return (
     <>
-      <div className={styles.rack} style={{ opacity: ready ? 1 : 0, transitionDuration: `${MOTION.sceneFadeMs}ms` }}>
+      <div className={styles.rack} aria-busy={!ready} style={{ opacity: ready ? 1 : 0, transitionDuration: `${MOTION.sceneFadeMs}ms` }}>
         <Canvas
           shadows="variance"
           frameloop="demand"

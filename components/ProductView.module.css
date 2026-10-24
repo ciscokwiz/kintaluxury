@@ -67,6 +67,9 @@
 }
 .faceToggle button[aria-pressed="true"] { background: var(--ink, #161616); color: #fff; }
 .faceToggle button:disabled { cursor: default; }
+.hangerSlot { position: absolute; left: 2.1vw; top: 4vh; }
+.hangerToggle { min-height: 40px; border: 0; padding: 0; background: none; color: var(--ink, #161616); font: 500 11px/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+.hangerToggle:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; }
 
 .arrow {
   width: 40px;
@@ -148,6 +151,7 @@
   .faceSlot { top: 84vh; }
   .faceToggle button { min-height: 34px; }
   .closeSlot { right: 5vw; top: 2vh; }
+  .hangerSlot { left: 5vw; top: 2vh; }
   .variants { top: 14vh; left: auto; right: 5vw; }
   .tags { gap: 10px; padding-top: 30px; }
   .tag { width: 27px; height: 70px; transform-origin: 50% -29px; }

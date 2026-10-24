@@ -13,7 +13,6 @@ const PRODUCT_PHOTOS: Record<string, { front: string; back?: string }> = {
   "01": { front: "/product-photos/1.png", back: "/product-photos/2.png" },
   "02": { front: "/product-photos/3.png" },
   "03": { front: "/product-photos/4.png" },
-  "04": { front: "/product-photos/5.png" },
 };
 
 export default function ProductPurchase({ initialProduct, variants }: { initialProduct: Product; variants: Product[] }) {

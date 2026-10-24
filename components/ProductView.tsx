@@ -20,6 +20,8 @@ export default function ProductView() {
   const active = useStore((st) => st.active);
   const navTick = useStore((st) => st.navTick);
   const face = useStore((st) => st.face);
+  const showHanger = useStore((st) => st.showHanger);
+  const toggleHanger = useStore((st) => st.toggleHanger);
   const close = useStore((st) => st.close);
   const go = useStore((st) => st.go);
   const setFace = useStore((st) => st.setFace);
@@ -204,6 +206,11 @@ export default function ProductView() {
             <button type="button" aria-pressed={face === "back"} onClick={() => setFace("back")} tabIndex={open ? 0 : -1} disabled={mode !== "detail"}>Back</button>
           </div>
         </div>
+        <div className={styles.hangerSlot}>
+          <button type="button" data-pv-item className={styles.hangerToggle} aria-pressed={showHanger} onClick={toggleHanger} tabIndex={open ? 0 : -1} disabled={mode !== "detail"}>
+            {showHanger ? "Hide hanger" : "Show hanger"}
+          </button>
+        </div>
         <div className={`${styles.slot} ${styles.pill}`}>
           <div data-pv-item>
             <SeeAvailability productIndex={active ?? undefined} tabIndex={open ? 0 : -1} />
@@ -216,7 +223,7 @@ export default function ProductView() {
                 key={variant.id}
                 type="button"
                 className={styles.tag}
-                style={{ backgroundColor: variant.colorHex, color: ["Bone", "Sand", "Sky", "Slate"].includes(variant.colorName) ? "#151515" : "#fff" }}
+                style={{ backgroundColor: variant.colorHex, color: ["Bone", "Sand", "Sky", "Peach"].includes(variant.colorName) ? "#151515" : "#fff" }}
                 aria-label={`Choose ${variant.colorName}`}
                 aria-pressed={active === variant.index}
                 onClick={() => selectVariant(variant.index)}

@@ -1,111 +1,53 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
 import { PRODUCTS } from "@/lib/products";
-import { MOTION, DEG_TO_RAD, FABRIC } from "@/lib/motion";
+import { MOTION, DEG_TO_RAD } from "@/lib/motion";
 import { detail, sim, useStore } from "@/lib/store";
-import { CAM_Z, FOV, useRackMetrics } from "./useRackLayout";
-import { Garment, createFabricMaterial, createSeamMaterial, createGarmentGeometries, disposeGarmentGeometries } from "./Garment";
-import { createChromeMaterial, createWoodMaterial } from "./Hanger";
+import { CAM_Z, detailPlacement, FOV, useRackMetrics } from "./useRackLayout";
+import { Garment } from "./GarmentModel";
 import { StudioLights } from "./StudioLights";
-import { TEXTURE_URLS, configureTextures } from "./RackScene";
 import { springStep } from "./physics";
-import {
-  createFabricState,
-  createFabricUniforms,
-  fabricGlobals,
-  pointerOnGarment,
-  setFabricFrame,
-  stepFabric,
-  syncFabricGlobals,
-} from "./fabric";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 function DetailGarment() {
   const m = useRackMetrics();
-  const gl = useThree((s) => s.gl);
-  const invalidate = useThree((s) => s.invalidate);
-  const camera = useThree((s) => s.camera);
-  const active = useStore((s) => s.active);
-  const mode = useStore((s) => s.mode);
-
-  const textures = useTexture(TEXTURE_URLS);
-  useMemo(() => configureTextures(textures, Math.min(8, gl.capabilities.getMaxAnisotropy())), [textures, gl]);
-
-  const geometries = useMemo(() => ({
-    tee: createGarmentGeometries(m, "tee"),
-    longsleeve: createGarmentGeometries(m, "longsleeve"),
-    crewneck: createGarmentGeometries(m, "crewneck"),
-    hoodie: createGarmentGeometries(m, "hoodie"),
-  }), [m]);
-  useEffect(() => () => Object.values(geometries).forEach(disposeGarmentGeometries), [geometries]);
-
-  // cloth for the product view: one uniform set per product, one eased state
-  const cloth = useMemo(() => PRODUCTS.map((_, i) => createFabricUniforms(i * 1.7)), []);
-  const clothState = useMemo(() => createFabricState(), []);
-  useEffect(() => cloth.forEach((u) => setFabricFrame(u, m)), [cloth, m]);
-  const pointer = useRef({ x: -1, y: -1, spinning: false });
-  const local = useMemo(() => new THREE.Vector2(), []);
-
-  // separate, fadeable materials (transparent) for the product view
-  const mats = useMemo(() => {
-    const wood = createWoodMaterial();
-    const chrome = createChromeMaterial();
-    wood.transparent = chrome.transparent = true;
-    return PRODUCTS.map((product, i) => ({
-      edge: createSeamMaterial(product.colorHex, true, cloth[i]),
-      front: createFabricMaterial(textures[i * 2], "front", true, cloth[i]),
-      back: createFabricMaterial(textures[i * 2 + 1], "back", true, cloth[i]),
-      wood,
-      chrome,
-    }));
-  }, [textures, cloth]);
-
-  useEffect(() => () => {
-    new Set(mats.flatMap((material) => Object.values(material))).forEach((material) => material.dispose());
-  }, [mats]);
-
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  const active = useStore((state) => state.active);
+  const mode = useStore((state) => state.mode);
+  const showHanger = useStore((state) => state.showHanger);
   const root = useRef<THREE.Group>(null);
   const yaw = useRef<THREE.Group>(null);
 
   useEffect(() => {
     sim.wakeDetail = invalidate;
     invalidate();
-  }, [invalidate, active, mode]);
+  }, [invalidate, active, mode, showHanger]);
 
-  // drag to turn the garment on its hook (shows the back print), springs to the nearest face
   useEffect(() => {
     const el = gl.domElement;
+    let dragging = false;
     let startX = 0;
     let startSpin = 0;
-    let dragging = false;
-    const track = (e: PointerEvent) => {
-      pointer.current.x = e.clientX;
-      pointer.current.y = e.clientY;
-      if (useStore.getState().mode === "detail") invalidate();
-    };
-    window.addEventListener("pointermove", track, { passive: true });
-    const down = (e: PointerEvent) => {
-      if (useStore.getState().mode !== "detail" || !e.isPrimary || e.button !== 0) return;
+    const down = (event: PointerEvent) => {
+      if (useStore.getState().mode !== "detail" || !event.isPrimary || event.button !== 0) return;
       dragging = true;
-      pointer.current.spinning = true;
-      startX = e.clientX;
+      startX = event.clientX;
       startSpin = detail.spinTarget;
-      el.setPointerCapture(e.pointerId);
+      el.setPointerCapture(event.pointerId);
     };
-    const move = (e: PointerEvent) => {
+    const move = (event: PointerEvent) => {
       if (!dragging) return;
-      detail.spinTarget = startSpin + ((e.clientX - startX) / m.widthPx) * Math.PI * 2.2;
+      detail.spinTarget = startSpin + ((event.clientX - startX) / m.widthPx) * Math.PI * 2.2;
       invalidate();
     };
     const up = () => {
       if (!dragging) return;
       dragging = false;
-      pointer.current.spinning = false;
       detail.spinTarget = Math.round(detail.spinTarget / Math.PI) * Math.PI;
       const turns = Math.round(detail.spinTarget / Math.PI);
       useStore.setState({ face: Math.abs(turns % 2) === 1 ? "back" : "front" });
@@ -120,7 +62,6 @@ function DetailGarment() {
     el.addEventListener("pointerup", up);
     el.addEventListener("pointercancel", up);
     return () => {
-      window.removeEventListener("pointermove", track);
       el.removeEventListener("pointerdown", down);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
@@ -129,72 +70,38 @@ function DetailGarment() {
   }, [gl, m, invalidate]);
 
   useFrame((_, rawDelta) => {
-    const dt = Math.min(rawDelta, MOTION.maxDelta);
     const r = root.current;
     const y = yaw.current;
     if (!r || !y) return;
     const show = active !== null && mode !== "rack" && mode !== "closing" && detail.opacity > 0.001;
     r.visible = show;
     if (!show || active === null) return;
+    const dt = Math.min(rawDelta, MOTION.maxDelta);
     let moving = false;
-
-    const p = detail.p;
-    const f = detail.from;
-    // tail of the open animation: a tiny settle sway that dies out within ~1 s
     let settle = 0;
     if (detail.settleStart >= 0 && !sim.reduced) {
       const t = performance.now() / 1000 - detail.settleStart;
-      const env = Math.exp(-MOTION.detailSettle.decay * t);
-      settle = MOTION.detailSettle.amplitudeDeg * DEG_TO_RAD * Math.sin(t * Math.PI * 2 * MOTION.detailSettle.hz) * env;
-      if (env > 0.002) moving = true;
+      const envelope = Math.exp(-MOTION.detailSettle.decay * t);
+      settle = MOTION.detailSettle.amplitudeDeg * DEG_TO_RAD * Math.sin(t * Math.PI * 2 * MOTION.detailSettle.hz) * envelope;
+      if (envelope > 0.002) moving = true;
     }
-    springStep(detail, "spin", "spinV", detail.spinTarget, MOTION.swivel.stiffness, MOTION.swivel.damping, dt);
+    if (sim.reduced) {
+      detail.spin = detail.spinTarget;
+      detail.spinV = 0;
+    } else {
+      springStep(detail, "spin", "spinV", detail.spinTarget, MOTION.swivel.stiffness, MOTION.swivel.damping, dt);
+    }
     if (Math.abs(detail.spin - detail.spinTarget) > 1e-4 || Math.abs(detail.spinV) > 1e-4) moving = true;
-
-    r.position.set(lerp(f.x, 0, p), lerp(f.y, m.detailPivotY, p), 0);
-    r.rotation.z = lerp(f.roll, 0, p) + settle;
-    // lean away from the hand pressing the cloth (eased by the cloth state)
-    const lean =
-      FABRIC.enabled && !sim.reduced
-        ? Math.max(-1, Math.min(1, clothState.cursor.x / (m.garmentW * 0.45))) * FABRIC.leanDeg * 0.6 * DEG_TO_RAD * clothState.press
-        : 0;
-    y.rotation.y = lerp(f.yaw, 0, p) + detail.spin + lean;
-    y.scale.setScalar(lerp(f.scale, m.detailScale, p));
-
-    // Only motion from turning the hanger drives the default fabric response.
-    syncFabricGlobals(sim.reduced);
-    fabricGlobals.uTime.value += dt;
-    let press = 0;
-    let cursor: THREE.Vector2 | null = null;
-    const pt = pointer.current;
-    if (mode === "detail" && !pt.spinning && pt.x >= 0) {
-      r.updateMatrixWorld(true);
-      if (pointerOnGarment(camera, pt.x, pt.y, m.widthPx, m.heightPx, y, m, local)) {
-        press = 1;
-        cursor = local;
-      }
-    }
-    const clothMoving = stepFabric(
-      clothState,
-      cloth[active],
-      { press, cursor, hover: 0, yawVelocity: detail.spinV, slideVelocity: 0 },
-      dt,
-      m.garmentW,
-    );
-    if (clothMoving) moving = true;
-    if (Math.abs(lean) > 1e-4) moving = true;
-
-    const mt = mats[active];
-    (mt.front as THREE.MeshStandardMaterial).opacity = detail.opacity;
-    (mt.back as THREE.MeshStandardMaterial).opacity = detail.opacity;
-    (mt.edge as THREE.MeshStandardMaterial).opacity = detail.opacity;
-    (mt.wood as THREE.MeshStandardMaterial).opacity = detail.opacity;
-    (mt.chrome as THREE.MeshStandardMaterial).opacity = detail.opacity;
+    const fit = detailPlacement(m, PRODUCTS[active].kind);
+    r.position.set(lerp(detail.from.x, 0, detail.p), lerp(detail.from.y, fit.y, detail.p), 0);
+    r.rotation.z = lerp(detail.from.roll, 0, detail.p) + settle;
+    y.rotation.y = lerp(detail.from.yaw, 0, detail.p) + detail.spin;
+    y.scale.setScalar(lerp(detail.from.scale, fit.scale, detail.p));
     if (moving) invalidate();
   });
 
   if (active === null) return null;
-  return <Garment geo={geometries[PRODUCTS[active].kind]} mats={mats[active]} rootRef={root} yawRef={yaw} />;
+  return <Garment key={active} product={PRODUCTS[active]} m={m} detailView showHanger={showHanger} rootRef={root} yawRef={yaw} />;
 }
 
 export default function DetailStage({ interactive }: { interactive: boolean }) {

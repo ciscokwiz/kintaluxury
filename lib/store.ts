@@ -15,6 +15,8 @@ interface UIState {
   /** bumps on every prev/next so the detail fade restarts even on wrap to the same index */
   navTick: number;
   face: GarmentFace;
+  showHanger: boolean;
+  toggleHanger: () => void;
   setHovered: (i: number | null) => void;
   setReady: () => void;
   open: (i: number) => void;
@@ -32,6 +34,8 @@ export const useStore = create<UIState>((set, get) => ({
   ready: false,
   navTick: 0,
   face: "front",
+  showHanger: false,
+  toggleHanger: () => { set({ showHanger: !get().showHanger }); sim.wakeDetail(); },
   setHovered: (i) => {
     if (get().hovered !== i) set({ hovered: i });
   },

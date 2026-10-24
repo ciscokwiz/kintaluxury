@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { useThree } from "@react-three/fiber";
 import { MOTION } from "@/lib/motion";
-import { PRODUCTS, HEM_FRAC } from "@/lib/products";
+import { PRODUCTS } from "@/lib/products";
+import { COLLAR_OFFSET, MODEL_SHAPES, type ModelKind } from "@/lib/garment-models";
 
 /* ------------------------------------------------------------------------
  * Viewport → world mapping.
@@ -14,9 +15,6 @@ import { PRODUCTS, HEM_FRAC } from "@/lib/products";
 export const WORLD_H = 10;
 export const FOV = 24;
 export const CAM_Z = WORLD_H / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
-
-/** texture layout (px in the 1000 × 1200 garment textures) */
-export const TEX = { w: 1000, h: 1200, hangerTop: -18, hangerTipX: 285, hangerTipTop: 150, hangerThick: 34 };
 
 export type Breakpoint = "desktop" | "tablet" | "mobile";
 
@@ -46,16 +44,10 @@ export interface RackMetrics {
   hookCy: number;
   /** top of the hook, relative to the rail centre */
   hookTop: number;
-  /** y of the hanger's top edge (centre), relative to the rail centre */
-  hangerTop: number;
-  /** world units per texture px */
-  texel: number;
   garmentW: number;
   garmentH: number;
-  /** y of the texture centre, relative to the rail centre */
-  garmentCy: number;
-  /** z separation between front panel, hanger and back panel */
-  layer: number;
+  /** Reviewed assets are in metres; this maps them into the showroom. */
+  modelScale: number;
   /** drape curvature: z = −k·x² */
   drapeK: number;
 
@@ -67,9 +59,6 @@ export interface RackMetrics {
   scrollable: boolean;
   scrollMax: number;
 
-  /** product view: pivot y and scale of the detail garment */
-  detailPivotY: number;
-  detailScale: number;
   /** hem y (relative to the pivot, unscaled) for each product */
   hemY: number[];
 }
@@ -90,13 +79,10 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   // The inner top of the hook rests on the top of the rail.
   const hookCy = railRadius - hookR + hookTube;
   const hookTop = hookCy + hookR + hookTube;
-  const hangerTop = -lh(2.3);
-
-  // Longer hanging silhouettes, with the wooden neck exposed above the collar.
+  // Shared scale preserves each reviewed silhouette's actual proportions.
   const garmentH = lh(bp === "mobile" ? 42 : 44);
-  const texel = garmentH / TEX.h;
-  const garmentW = TEX.w * texel * 1.06;
-  const garmentCy = hangerTop + TEX.hangerTop * texel - garmentH / 2;
+  const modelScale = garmentH / 0.9;
+  const garmentW = MODEL_SHAPES.hoodie.width * modelScale;
   const frontWidth = garmentW * 0.88;
 
   const pitch = Math.max(lw(MOTION.restPitchVw), frontWidth * 0.272);
@@ -121,15 +107,10 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
   const centre = (railLeft + railRight) / 2;
   const restX = PRODUCTS.map((_, i) => centre - rowSpan / 2 + i * pitch);
 
-  const hemY = PRODUCTS.map((p) => garmentCy + garmentH / 2 - HEM_FRAC[p.kind] * garmentH);
-  const lowestHem = Math.min(...hemY);
-  const detailScale = Math.min(
-    lh(71 - 16) / (hookTop - lowestHem),
-    (worldW * (bp === "mobile" ? 0.86 : 0.62)) / garmentW,
-  );
-  // Keep the whole silhouette inside portrait screens, centered above controls.
-  const detailPivotY = y((16 + 71) / 2) - ((hookTop + lowestHem) / 2) * detailScale;
-
+  const hemY = PRODUCTS.map((p) => {
+    const shape = MODEL_SHAPES[p.kind];
+    return (shape.bottom - shape.hook - COLLAR_OFFSET) * modelScale;
+  });
   return {
     widthPx,
     heightPx,
@@ -148,12 +129,9 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     hookTube,
     hookCy,
     hookTop,
-    hangerTop,
-    texel,
     garmentW,
     garmentH,
-    garmentCy,
-    layer: 10 * texel,
+    modelScale,
     drapeK: 0.13 / garmentW,
     pitch,
     wFront,
@@ -162,10 +140,16 @@ export function computeMetrics(widthPx: number, heightPx: number): RackMetrics {
     restX,
     scrollable,
     scrollMax,
-    detailPivotY,
-    detailScale,
     hemY,
   };
+}
+
+/** Fit the selected silhouette, reserving room for its optional hanger. */
+export function detailPlacement(m: RackMetrics, kind: ModelKind) {
+  const shape = MODEL_SHAPES[kind];
+  const bottom = (shape.bottom - shape.hook - COLLAR_OFFSET) * m.modelScale;
+  const scale = Math.min(m.lh(55) / (m.hookTop - bottom), m.worldW * (m.bp === "mobile" ? 0.86 : 0.62) / (shape.width * m.modelScale));
+  return { scale, y: m.y(43.5) - (m.hookTop + bottom) / 2 * scale };
 }
 
 /** Metrics for the canvas this hook is called in (recomputed on resize). */

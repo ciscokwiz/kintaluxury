@@ -24,27 +24,36 @@ are required for the current enquiry workflow.
 ## Showroom
 
 The plain studio wall, chrome rail, wooden hangers, lime announcement strip,
-and black typography frame ten garment colorways across seven designs.
+and black typography frame ten garment colorways across five designs from the
+collection sheet: Liberty, New African Icon, Restricted Eagle, logo tees, and
+logo hoodies.
 Hover a garment to swivel it forward and move its neighbors apart. Click to
 open the product view; on touch, tap once to turn and again to open.
 Narrow screens support dragging the rack horizontally.
 
-The product view has Front/Back buttons, drag-to-turn, hanging color tags,
+The product view has Front/Back buttons, drag-to-turn, an optional hanger, hanging color tags,
 previous/next design navigation, and a link to the selected product and color.
 The ticker stays visible. Keyboard users can Tab through the garments, press
 Enter to open, use arrow keys to navigate, and Escape to close. Reduced-motion
 preferences are respected.
 
-The longer silhouettes use transparent front/back WebP textures on curved,
-subdivided surfaces with chest and sleeve volume. Sewn edges join the faces
-around each design's silhouette and neckline; the generator exports their shared
-contours to `lib/garment-shapes.json`. Exposed wooden hanger necks, soft wall
-shadows, and chrome wall plates ground the rack. Hover turns the garment without
-lifting or enlarging it, and the hook stays seated while its neighbors slide
-and settle. Fabric motion follows turning and sliding; pointer dents, ripples,
-and continuous billowing are off by default. These are shaped mockups, not
-scans. Original brand photos remain in the product gallery for the first four
-colorways.
+The rack uses the reviewed, complete 3D tee and hoodie meshes, with open collars,
+sleeves and hems, real thickness, fabric folds, seams, and PBR cotton materials.
+The hoodie adds a shaped hood, drawstrings, ribbed cuffs and a kangaroo pocket.
+The ten colorways share geometry while retaining their own prints and materials.
+Liberty retains its illustrated back; other backs are plain, as the collection
+sheet only supplies front designs.
+
+Lightweight GLBs render on the rack and mobile. Desktop close-ups load the
+detailed meshes and 2K color maps on demand, keeping the same print alignment
+and proportions. Meshopt decoding ships in the application; no CDN is required.
+Turning and sliding drive four morph targets that damp completely to rest.
+The hook stays seated while neighboring garments slide and settle. The
+optional `?tune` panel controls turn and slide trailing. See
+[the garment asset notes](docs/3d-garments.md) for model and texture details.
+
+Product pages and the bag use matching front/back mockups. Original brand
+photos remain available for Liberty, New African Icon and the Azure Eagle tee.
 
 ## Products and bag
 
@@ -66,12 +75,14 @@ before enabling online checkout. Size options do not assert stock availability.
 ```text
 app/                         showroom, product and cart routes
 components/ProductView*      product overlay and color/view controls
-components/three/            rail, garment geometry, lighting, cloth simulation
+components/three/            rail, GLB instances, lighting, cloth morphs
 components/shop/             product pages, bag, shared shopping styles
 lib/products.ts              catalog, colors, grouped designs and pricing
 lib/cart.ts                  validated browser-local bag
 lib/store.ts                 showroom state and mutable animation state
 lib/motion.ts                timing, springs and fabric parameters
+lib/garment-models.ts        asset paths, dimensions and damped morph controls
+public/models/kinta/        optimized GLBs and color textures
 public/garments/             transparent garment front/back mockups
 public/product-photos/       unchanged original brand photos
 ```
@@ -86,7 +97,7 @@ npm run build:artifact
 ```
 
 This creates `artifact/dist/kinta-website.html` (also `index.html`): one
-self-contained HTML file with all 25 images, JavaScript, and styles embedded.
+self-contained HTML file with the models, textures, images, JavaScript, and styles embedded.
 Open that file directly in a WebGL-capable browser; no development server or
 Internet connection is needed to explore the rack, product pages, photos, and
 bag. Navigation uses hash routes so reload and browser back/forward work from
@@ -102,5 +113,5 @@ npm run garments
 The garment generator extracts brand artwork from `scripts/photos/` and
 recreates `public/garments/`. This rewrites tracked mockups. The original photos
 and this procedural generator remain available for future asset work.
-It also regenerates `lib/garment-shapes.json`, which keeps the sewn geometry,
-necklines, and product framing aligned with those mockups.
+It also regenerates `lib/garment-shapes.json` for the 2D mockup silhouettes.
+It does not alter the reviewed 3D meshes or their UV textures.

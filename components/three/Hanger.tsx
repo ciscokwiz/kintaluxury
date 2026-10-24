@@ -2,18 +2,18 @@
 
 import * as THREE from "three";
 import type { RackMetrics } from "./useRackLayout";
-import { TEX } from "./useRackLayout";
+import { MODEL_SHAPES, type ModelKind } from "@/lib/garment-models";
 
 const WOOD_DARK = new THREE.Color("#4d2819");
 const WOOD_LIGHT = new THREE.Color("#9b5b34");
 
 /** Wooden shoulder bar: a flattened arch, extruded, bevelled and bent to the drape. */
-export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
-  const t = m.texel;
-  const top = m.hangerTop;
-  const tipX = TEX.hangerTipX * (m.garmentW / TEX.w);
-  const drop = (TEX.hangerTipTop - TEX.hangerTop) * t;
-  const th = TEX.hangerThick * t;
+export function createHangerGeometry(m: RackMetrics, kind: ModelKind = "tee"): THREE.BufferGeometry {
+  const t = m.modelScale;
+  const top = -MODEL_SHAPES[kind].hook * t;
+  const tipX = 0.205 * t;
+  const drop = 0.11 * t;
+  const th = 0.025 * t;
 
   const s = new THREE.Shape();
   s.moveTo(-tipX, top - drop);
@@ -27,8 +27,8 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
   s.bezierCurveTo(-tipX * 0.25, top - drop * 0.3 - th, -tipX * 0.65, top - drop * 0.55 - th, -tipX + th * 0.15, top - drop - th);
   s.quadraticCurveTo(-tipX - th * 0.55, top - drop - th * 0.5, -tipX, top - drop);
 
-  const depth = 26 * t;
-  const bevel = 1.4 * t;
+  const depth = 0.012 * t;
+  const bevel = 0.0014 * t;
   const g = new THREE.ExtrudeGeometry(s, {
     depth,
     bevelEnabled: true,
@@ -47,7 +47,7 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
     const x = pos.getX(i);
     pos.setZ(i, pos.getZ(i) - m.drapeK * x * x);
     const k = 1 - Math.min(1, Math.abs(x) / tipX);
-    const grain = Math.sin(x / t * 0.15 + pos.getY(i) / t * 0.6) * 0.045;
+    const grain = Math.sin(x / t * 150 + pos.getY(i) / t * 600) * 0.045;
     c.copy(WOOD_DARK).lerp(WOOD_LIGHT, 0.24 + 0.62 * k + grain);
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
@@ -59,13 +59,13 @@ export function createHangerGeometry(m: RackMetrics): THREE.BufferGeometry {
 }
 
 /** Chrome hook: a ~300° arc around the rail plus a short stem down into the hanger. */
-export function createHookGeometries(m: RackMetrics) {
+export function createHookGeometries(m: RackMetrics, kind: ModelKind = "tee") {
   const ring = new THREE.TorusGeometry(m.hookR, m.hookTube, 10, 40, (285 * Math.PI) / 180);
   // the arc starts at the bottom (where the stem joins) and ends lower-left
   ring.rotateZ((-105 * Math.PI) / 180);
   ring.translate(0, m.hookCy, 0);
   const stemTop = m.hookCy - m.hookR;
-  const stemBottom = m.hangerTop - TEX.hangerThick * m.texel * 0.4;
+  const stemBottom = -(MODEL_SHAPES[kind].hook + 0.006) * m.modelScale;
   const stem = new THREE.CylinderGeometry(m.hookTube, m.hookTube * 1.15, stemTop - stemBottom, 10);
   stem.translate(0, (stemTop + stemBottom) / 2, 0);
   return { ring, stem };
